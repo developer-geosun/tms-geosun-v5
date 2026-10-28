@@ -1,14 +1,14 @@
 ## Базовий стек для стандартного запуску застосунку.
 ## Хостові порти й імена контейнерів не перетинаються з tms-geosun-v1,
 ## тож обидва стеки можна тримати запущеними разом. Усередині мережі Compose
-## порти колишні (backend 8080, MySQL 3306). База v4 — окремий volume mysql_data.
-name: tms-geosun-v4
+## порти колишні (backend 8080, MySQL 3306). База v5 — окремий volume mysql_data.
+name: tms-geosun-v5
 
 services:
   # База даних для backend-сервісу авторизації
   mysql:
     image: mysql:8.0
-    container_name: tms-v4-mysql
+    container_name: tms-v5-mysql
     environment:
       MYSQL_DATABASE: ${MYSQL_DATABASE:-tms_auth}
       MYSQL_USER: ${MYSQL_USER:-tms_user}
@@ -27,7 +27,7 @@ services:
   # MinIO (S3-сумісне сховище) — опційно для APP_STORAGE_TYPE=s3
   minio:
     image: minio/minio:RELEASE.2024-12-18T13-15-44Z
-    container_name: tms-v4-minio
+    container_name: tms-v5-minio
     command: server /data --console-address ":9001"
     environment:
       MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minioadmin}
@@ -47,7 +47,7 @@ services:
   # Створення bucket для MinIO (одноразово при старті)
   minio-init:
     image: minio/mc:RELEASE.2025-08-13T08-35-41Z
-    container_name: tms-v4-minio-init
+    container_name: tms-v5-minio-init
     depends_on:
       minio:
         condition: service_started
@@ -68,7 +68,7 @@ services:
     build:
       context: ./backend-java
       dockerfile: Dockerfile
-    container_name: tms-v4-backend
+    container_name: tms-v5-backend
     depends_on:
       mysql:
         condition: service_healthy
@@ -144,7 +144,7 @@ services:
       dockerfile: Dockerfile
       args:
         FRONTEND_BUILD_CONFIGURATION: ${FRONTEND_BUILD_CONFIGURATION:-production}
-    container_name: tms-v4-frontend
+    container_name: tms-v5-frontend
     depends_on:
       - backend
     environment:
@@ -155,7 +155,7 @@ services:
   # Єдина точка входу (reverse proxy) для backend і frontend
   gateway:
     image: nginx:1.27-alpine
-    container_name: tms-v4-gateway
+    container_name: tms-v5-gateway
     depends_on:
       - backend
       - frontend
@@ -171,7 +171,7 @@ services:
     profiles:
       - ngrok
     image: ngrok/ngrok:latest
-    container_name: tms-v4-ngrok
+    container_name: tms-v5-ngrok
     depends_on:
       - backend
     environment:
@@ -183,6 +183,6 @@ services:
 volumes:
   # Персистентне сховище даних MySQL. Фіксоване ім'я — окремо від volume v1.
   mysql_data:
-    name: tms-geosun-v4_mysql_data
+    name: tms-geosun-v5_mysql_data
   backend_uploads:
   minio_data:

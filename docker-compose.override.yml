@@ -5,7 +5,7 @@ services:
     profiles:
       - dev
     image: node:22.14-alpine
-    container_name: tms-v4-frontend-dev
+    container_name: tms-v5-frontend-dev
     working_dir: /app
     depends_on:
       - backend
@@ -38,7 +38,7 @@ services:
     profiles:
       - dev
     image: nginx:1.27-alpine
-    container_name: tms-v4-gateway-dev
+    container_name: tms-v5-gateway-dev
     depends_on:
       - backend
       - frontend-dev
@@ -52,7 +52,7 @@ services:
     profiles:
       - ngrok-dev
     image: ngrok/ngrok:latest
-    container_name: tms-v4-ngrok-dev
+    container_name: tms-v5-ngrok-dev
     depends_on:
       - backend
     environment:

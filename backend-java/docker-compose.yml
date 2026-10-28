@@ -1,12 +1,12 @@
 # Альтернатива кореневому стеку: лише MySQL + backend.
 # Імена й хостові порти ті самі, що в кореневому compose, тож цей файл
-# не конфліктує з v1 і не стартує паралельно з уже запущеним кореневим v4.
-name: tms-geosun-v4-backend
+# не конфліктує з v1 і не стартує паралельно з уже запущеним кореневим v5.
+name: tms-geosun-v5-backend
 
 services:
   mysql:
     image: mysql:8.0
-    container_name: tms-v4-mysql
+    container_name: tms-v5-mysql
     environment:
       MYSQL_DATABASE: ${MYSQL_DATABASE:-tms_auth}
       MYSQL_USER: ${MYSQL_USER:-tms_user}
@@ -27,7 +27,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: tms-v4-backend
+    container_name: tms-v5-backend
     depends_on:
       mysql:
         condition: service_healthy
@@ -75,4 +75,4 @@ services:
 
 volumes:
   mysql_data:
-    name: tms-geosun-v4_mysql_data
+    name: tms-geosun-v5_mysql_data
