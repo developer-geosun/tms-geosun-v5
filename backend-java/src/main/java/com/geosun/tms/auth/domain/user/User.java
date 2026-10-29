@@ -31,7 +31,10 @@ public class User {
   @Column(name = "id", nullable = false, updatable = false, length = 36)
   private String id;
 
-  /** Підприємство співробітника. Порожнє лише до переносу існуючих рядків. */
+  /**
+   * Підприємство співробітника. У MySQL після V49 колонка NOT NULL. У мапінгу nullable лишається,
+   * щоб тест переносу встиг вставити рядок до раннера (H2 не ганяє Flyway).
+   */
   @Column(name = "enterprise_id", length = 36)
   private String enterpriseId;
 

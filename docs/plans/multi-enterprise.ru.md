@@ -1,7 +1,7 @@
 # План: несколько предприятий в одном приложении
 
 **Дата создания:** 29 октября 2026, 11:19 (UTC+3)  
-**Дата изменения:** 29 октября 2026, 13:30 (UTC+3)  
+**Дата изменения:** 29 октября 2026, 14:12 (UTC+3)  
 **Спека:** [`docs/specs/multi-enterprise.ru.en.md`](../specs/multi-enterprise.ru.en.md)  
 **Brief:** [`docs/briefs/multi-enterprise.ru.md`](../briefs/multi-enterprise.ru.md)
 
@@ -21,13 +21,9 @@
 - [x] Существующие строки получают id первого предприятия. B19 ADMIN — только если у первого предприятия ещё нет ADMIN.
 - [x] Тесты среза 2.1 зелёные; Spotless и предупреждения по срезу — 0.
 - [x] Переменные в `.env.example`, `backend-java/.env.example`, обоих `docker-compose.yml` и [`RUN.ru.md`](../RUN.ru.md).
-
-### Сделано не до конца
-
-- [ ] На рабочую MySQL миграция ещё не накатывалась (нужен перезапуск backend с заполненным `.env`).
-- [ ] Колонка `enterprise_id` в БД допускает NULL (Flyway идёт до runner); жёсткий `NOT NULL` — отдельной миграцией после первого деплоя.
-- [x] Ключ `trip_number_seq`: пара (предприятие, год) в V48 (UNIQUE) и в JPA (`@IdClass`); PK в MySQL — сурогатный `id`, см. «Ход шага 2.3».
-- [ ] Миграция V48 не проверялась на MySQL (тесты идут на H2).
+- [x] На рабочую MySQL накатаны V46–V49. Схема была v45, стала v49. Первое предприятие `geosun` и оператор платформы созданы; повторный старт не плодит второе предприятие и не меняет пароль.
+- [x] `enterprise_id` в рабочей MySQL — `NOT NULL` на всех корнях из §3. V49 ставит ограничение, если пустых строк уже нет; иначе то же делает раннер после переноса. В JPA колонка остаётся nullable: H2-тесты не гоняют Flyway и вставляют строку до переноса. `ddl-auto=validate` после V49 прошёл.
+- [x] Ключ `trip_number_seq`: пара (предприятие, год) в V48 (UNIQUE) и в JPA (`@IdClass`); PK в MySQL — сурогатный `id`, см. «Ход шага 2.3». V48 проверена на рабочей MySQL.
 
 ### Дальше, по порядку
 
@@ -119,7 +115,7 @@
 
 Отступления:
 
-- `enterprise_id` в схеме остаётся допускающим NULL: Flyway идёт до `EnterpriseBootstrapRunner`, на первом деплое в строках ещё NULL.
+- На момент шага 2.3 `enterprise_id` в схеме ещё допускал NULL: Flyway идёт до раннера. Закрыто миграцией V49 и тем же раннером (см. статус вверху).
 - В MySQL `trip_number_seq` получает сурогатный `id` как PK и `UNIQUE (enterprise_id, seq_year)`: PK не может содержать NULL, а `enterprise_id` у старых строк до runner пуст. В JPA ключ составной; `ddl-auto=validate` PK не сверяет. В H2-тестах таблица строится по сущности, SQL V48 тестами не покрыт.
 - Тест переноса счётчика (`EnterpriseBootstrapIntegrationTest`) больше не создаёт строку `trip_number_seq` без предприятия: составной ключ её не допускает. JDBC-перенос счётчика остаётся в runner.
 - Тесты: `EnterpriseScopingIntegrationTest` (копия каталога, 404 на чужой id, автопарк, счётчик по предприятиям), расширены `CurrencyApiIntegrationTest`, `ChatbotTelegramIntegrationTest`, `FreightRequestNotifyIntegrationTest`.

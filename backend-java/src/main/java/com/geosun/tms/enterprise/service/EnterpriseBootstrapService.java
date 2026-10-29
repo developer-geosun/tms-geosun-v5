@@ -15,6 +15,8 @@ import java.util.Objects;
 import java.util.regex.Pattern;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.core.env.Environment;
+import org.springframework.core.env.Profiles;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.lang.NonNull;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -23,9 +25,10 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
 /**
- * Перше підприємство і оператор платформи. Повторний старт не змінює код і пароль. Колонка
- * enterprise_id лишається NULL-допустимою в схемі, щоб Hibernate validate збігався з V46 до
- * заповнення; порожні рядки після переносу зупиняють старт.
+ * Перше підприємство і оператор платформи. Повторний старт не змінює код і пароль. Порожні
+ * enterprise_id після переносу зупиняють старт. У робочій базі після заповнення колонка стає NOT
+ * NULL (V49, якщо порожніх уже не було, або цей раннер). У тестах DDL не виконується: H2-схема
+ * лишає колонку nullable, щоб можна було вставити рядок до переносу.
  */
 @Service
 public class EnterpriseBootstrapService {
@@ -65,6 +68,7 @@ public class EnterpriseBootstrapService {
   private final EnterpriseProperties enterpriseProperties;
   private final PlatformOperatorBootstrapProperties operatorProperties;
   private final DefaultAdminBootstrapProperties adminProperties;
+  private final Environment environment;
 
   public EnterpriseBootstrapService(
       EnterpriseRepository enterpriseRepository,
@@ -74,7 +78,8 @@ public class EnterpriseBootstrapService {
       PasswordEncoder passwordEncoder,
       EnterpriseProperties enterpriseProperties,
       PlatformOperatorBootstrapProperties operatorProperties,
-      DefaultAdminBootstrapProperties adminProperties) {
+      DefaultAdminBootstrapProperties adminProperties,
+      Environment environment) {
     this.enterpriseRepository = enterpriseRepository;
     this.platformOperatorRepository = platformOperatorRepository;
     this.userRepository = userRepository;
@@ -83,6 +88,7 @@ public class EnterpriseBootstrapService {
     this.enterpriseProperties = enterpriseProperties;
     this.operatorProperties = operatorProperties;
     this.adminProperties = adminProperties;
+    this.environment = environment;
   }
 
   @Transactional
@@ -95,6 +101,7 @@ public class EnterpriseBootstrapService {
     backfill(enterpriseId);
     ensureOperator();
     assertNoUnassignedRows();
+    enforceNotNullColumns();
   }
 
   @NonNull
@@ -162,6 +169,27 @@ public class EnterpriseBootstrapService {
       throw new IllegalStateException("PLATFORM_OPERATOR_EMAIL is missing or invalid");
     }
     return Objects.requireNonNull(normalized);
+  }
+
+  /** У профілі test колонку не чіпаємо: тести вставляють рядок без підприємства до переносу. */
+  private void enforceNotNullColumns() {
+    if (environment.acceptsProfiles(Profiles.of("test"))) {
+      return;
+    }
+    for (String table : SCOPED_TABLES) {
+      String tableName = Objects.requireNonNull(table);
+      String nullable =
+          jdbcTemplate.queryForObject(
+              "SELECT IS_NULLABLE FROM information_schema.COLUMNS "
+                  + "WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ? "
+                  + "AND COLUMN_NAME = 'enterprise_id'",
+              String.class,
+              tableName);
+      if (nullable != null && "YES".equalsIgnoreCase(nullable)) {
+        jdbcTemplate.execute(
+            "ALTER TABLE " + tableName + " MODIFY enterprise_id VARCHAR(36) NOT NULL");
+      }
+    }
   }
 
   private void assertNoUnassignedRows() {

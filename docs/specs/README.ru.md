@@ -1,7 +1,7 @@
 # Реестр спецификаций
 
 **Дата создания:** 15 сентября 2026, 00:00 (UTC+3)  
-**Дата изменения:** 29 октября 2026, 13:30 (UTC+3)
+**Дата изменения:** 29 октября 2026, 14:12 (UTC+3)
 
 Единая точка входа перед работой по ТЗ. Сами требования — в файлах ниже; этот файл отвечает только на вопросы «сделано ли», «это источник истины или дополнение», «что ещё открыто».
 
@@ -40,7 +40,7 @@
 | [admin-notify-new-freight-request.ru.en.md](admin-notify-new-freight-request.ru.en.md) | реализовано | источник истины (B20) | WhatsApp template SKIP; EMAIL/SMS по событию — вне scope |
 | [user-multi-role-switching.ru.en.md](user-multi-role-switching.ru.en.md) | реализовано | источник истины (B18) | нет; синхронизация B01/B02 |
 | [default-admin-bootstrap.ru.en.md](default-admin-bootstrap.ru.en.md) | реализовано | источник истины (B19) | первичный ADMIN из `ADMIN_EMAIL` / `ADMIN_PASSWORD`; дополняет B01 |
-| [multi-enterprise.ru.en.md](multi-enterprise.ru.en.md) | реализовано | источник истины (B21) | граница предприятия; вход с кодом; оператор платформы. Остаток: накат V46–V48 на рабочую MySQL и `NOT NULL` после первого деплоя |
+| [multi-enterprise.ru.en.md](multi-enterprise.ru.en.md) | реализовано | источник истины (B21) | граница предприятия; вход с кодом; оператор платформы. Остаток закрыт: V46–V49 на рабочей MySQL, `enterprise_id` NOT NULL |
 
 ### Маршруты и фрахт
 
