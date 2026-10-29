@@ -1,6 +1,7 @@
 package com.geosun.tms.reference.service;
 
 import com.geosun.tms.auth.exception.ApiException;
+import com.geosun.tms.enterprise.port.CurrentEnterprise;
 import com.geosun.tms.reference.domain.DocumentTypeFieldDefinition;
 import com.geosun.tms.reference.domain.DocumentTypeListView;
 import com.geosun.tms.reference.domain.DocumentTypeReference;
@@ -33,12 +34,50 @@ public class DocumentTypeReferenceService {
 
   private final DocumentTypeReferenceRepository documentTypeRepository;
   private final CountryReferenceRepository countryReferenceRepository;
+  private final CurrentEnterprise currentEnterprise;
 
   public DocumentTypeReferenceService(
       DocumentTypeReferenceRepository documentTypeRepository,
-      CountryReferenceRepository countryReferenceRepository) {
+      CountryReferenceRepository countryReferenceRepository,
+      CurrentEnterprise currentEnterprise) {
     this.documentTypeRepository = documentTypeRepository;
     this.countryReferenceRepository = countryReferenceRepository;
+    this.currentEnterprise = currentEnterprise;
+  }
+
+  /**
+   * Копіює каталог типів документів у нове підприємство з новими id. Джерело — перше за датою
+   * підприємство (його поточний вміст); якщо там порожньо — канонічні рядки c2000000-….
+   *
+   * @return кількість скопійованих рядків
+   */
+  @Transactional
+  public int copyCatalogToEnterprise(
+      @NonNull String targetEnterpriseId, String sourceEnterpriseId) {
+    List<DocumentTypeReference> source =
+        sourceEnterpriseId == null
+            ? List.of()
+            : documentTypeRepository
+                .findByEnterpriseIdAndDeletedFalseOrderByCountryCodeAscNameUkAsc(
+                    sourceEnterpriseId);
+    if (source.isEmpty()) {
+      source = documentTypeRepository.findCanonicalActive();
+    }
+    List<DocumentTypeReference> copies = new ArrayList<>();
+    for (DocumentTypeReference row : source) {
+      DocumentTypeReference copy = new DocumentTypeReference();
+      copy.setEnterpriseId(targetEnterpriseId);
+      copy.setNameUk(row.getNameUk());
+      copy.setNameEn(row.getNameEn());
+      copy.setNameRu(row.getNameRu());
+      copy.setCountryCode(row.getCountryCode());
+      copy.setPlannedScanPages(new ArrayList<>(row.getPlannedScanPages()));
+      copy.setComment(row.getComment() == null ? "" : row.getComment());
+      copy.setFieldDefinitions(new ArrayList<>(row.getFieldDefinitions()));
+      copies.add(copy);
+    }
+    documentTypeRepository.saveAll(copies);
+    return copies.size();
   }
 
   @Transactional(readOnly = true)
@@ -47,11 +86,17 @@ public class DocumentTypeReferenceService {
     String normalizedSearch = normalizeSearch(search);
     String normalizedCountry = normalizeCountryFilter(country);
     DocumentTypeListView effectiveView = view == null ? DocumentTypeListView.ACTIVE : view;
+    String enterpriseId = currentEnterprise.requireId();
     List<DocumentTypeReference> rows =
         switch (effectiveView) {
-          case ACTIVE -> documentTypeRepository.searchActive(normalizedSearch, normalizedCountry);
-          case DELETED -> documentTypeRepository.searchDeleted(normalizedSearch, normalizedCountry);
-          case ALL -> documentTypeRepository.searchAll(normalizedSearch, normalizedCountry);
+          case ACTIVE ->
+              documentTypeRepository.searchActive(
+                  enterpriseId, normalizedSearch, normalizedCountry);
+          case DELETED ->
+              documentTypeRepository.searchDeleted(
+                  enterpriseId, normalizedSearch, normalizedCountry);
+          case ALL ->
+              documentTypeRepository.searchAll(enterpriseId, normalizedSearch, normalizedCountry);
         };
     return rows.stream().map(row -> toDto(Objects.requireNonNull(row))).toList();
   }
@@ -70,6 +115,7 @@ public class DocumentTypeReferenceService {
     assertUniqueName(countryCode, nameUk, null);
 
     DocumentTypeReference row = new DocumentTypeReference();
+    row.setEnterpriseId(currentEnterprise.requireId());
     applyFields(
         row,
         nameUk,
@@ -260,14 +306,15 @@ public class DocumentTypeReferenceService {
   }
 
   private void assertUniqueName(String countryCode, String nameUk, String excludeId) {
+    String enterpriseId = currentEnterprise.requireId();
     boolean exists =
         excludeId == null
             ? documentTypeRepository
-                .existsByCountryCodeIgnoreCaseAndNameUkIgnoreCaseAndDeletedFalse(
-                    countryCode, nameUk)
+                .existsByEnterpriseIdAndCountryCodeIgnoreCaseAndNameUkIgnoreCaseAndDeletedFalse(
+                    enterpriseId, countryCode, nameUk)
             : documentTypeRepository
-                .existsByCountryCodeIgnoreCaseAndNameUkIgnoreCaseAndDeletedFalseAndIdNot(
-                    countryCode, nameUk, excludeId);
+                .existsByEnterpriseIdAndCountryCodeIgnoreCaseAndNameUkIgnoreCaseAndDeletedFalseAndIdNot(
+                    enterpriseId, countryCode, nameUk, excludeId);
     if (exists) {
       throw ApiException.conflict(
           "DOCUMENT_TYPE_NAME_EXISTS",
@@ -277,7 +324,7 @@ public class DocumentTypeReferenceService {
 
   private DocumentTypeReference requireDocumentType(@NonNull String id) {
     return documentTypeRepository
-        .findById(Objects.requireNonNull(id))
+        .findByIdAndEnterpriseId(Objects.requireNonNull(id), currentEnterprise.requireId())
         .orElseThrow(() -> ApiException.notFound("Document type not found"));
   }
 

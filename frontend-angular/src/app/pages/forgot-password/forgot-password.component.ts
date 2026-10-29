@@ -9,6 +9,7 @@ import { MatInputModule } from '@angular/material/input';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { TranslateModule } from '@ngx-translate/core';
 import { AuthService } from '../../core/services';
+import { ENTERPRISE_CODE_MAX_LENGTH } from '../../core/utils/enterprise-code';
 
 @Component({
   selector: 'app-forgot-password',
@@ -38,7 +39,10 @@ export class ForgotPasswordComponent {
     '429' | 'account_disabled' | 'user_deleted' | 'email_not_verified' | 'generic' | null
   >(null);
 
+  protected readonly enterpriseCodeMaxLength = ENTERPRISE_CODE_MAX_LENGTH;
+
   readonly form = this.formBuilder.nonNullable.group({
+    enterpriseCode: ['', [Validators.required, Validators.maxLength(ENTERPRISE_CODE_MAX_LENGTH)]],
     email: ['', [Validators.required, Validators.email]]
   });
 

@@ -3,6 +3,7 @@ import { serviceStopGuard } from './core/guards/service-stop.guard';
 import { authGuard } from './core/guards/auth.guard';
 import { authAvailabilityGuard } from './core/guards/auth-availability.guard';
 import { guestGuard } from './core/guards/guest.guard';
+import { platformAuthGuard, platformGuestGuard } from './core/guards/platform-auth.guard';
 import { AppShellComponent } from './layout/app-shell/app-shell.component';
 import { AuthShellComponent } from './layout/auth-shell/auth-shell.component';
 
@@ -41,6 +42,45 @@ export const routes: Routes = [
         canActivate: [authAvailabilityGuard, guestGuard],
         loadComponent: () =>
           import('./pages/reset-password/reset-password.component').then((m) => m.ResetPasswordComponent)
+      },
+      // Вхід оператора платформи — окремий маршрут, не вкладка входу співробітника
+      {
+        path: 'platform/login',
+        canActivate: [authAvailabilityGuard, platformGuestGuard],
+        loadComponent: () =>
+          import('./pages/platform-login/platform-login.component').then((m) => m.PlatformLoginComponent)
+      }
+    ]
+  },
+
+  // Кабінет оператора платформи — окрема сесія, поза AppShell співробітника
+  {
+    path: 'platform',
+    canActivate: [authAvailabilityGuard, platformAuthGuard],
+    loadComponent: () =>
+      import('./pages/platform-shell/platform-shell.component').then((m) => m.PlatformShellComponent),
+    children: [
+      { path: '', redirectTo: 'enterprises', pathMatch: 'full' },
+      {
+        path: 'enterprises',
+        loadComponent: () =>
+          import('./pages/platform-enterprises/platform-enterprises.component').then(
+            (m) => m.PlatformEnterprisesComponent
+          )
+      },
+      {
+        path: 'currencies',
+        data: { referenceScope: 'platform' },
+        loadComponent: () =>
+          import('./pages/admin-currencies/admin-currencies.component').then((m) => m.AdminCurrenciesComponent)
+      },
+      {
+        path: 'country-reference',
+        data: { referenceScope: 'platform' },
+        loadComponent: () =>
+          import('./pages/admin-country-reference/admin-country-reference.component').then(
+            (m) => m.AdminCountryReferenceComponent
+          )
       }
     ]
   },

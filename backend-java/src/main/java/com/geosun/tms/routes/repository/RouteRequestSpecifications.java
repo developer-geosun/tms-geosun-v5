@@ -18,6 +18,7 @@ public final class RouteRequestSpecifications {
   private RouteRequestSpecifications() {}
 
   public static Specification<RouteRequest> adminFilter(
+      String enterpriseId,
       RouteRequestStatus status,
       Instant createdFrom,
       Instant createdTo,
@@ -25,6 +26,7 @@ public final class RouteRequestSpecifications {
       String routeTitle) {
     return (root, query, cb) -> {
       List<Predicate> predicates = new ArrayList<>();
+      predicates.add(cb.equal(root.get("enterpriseId"), enterpriseId));
       if (status != null) {
         predicates.add(cb.equal(root.get("status"), status));
       }

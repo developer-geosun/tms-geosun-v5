@@ -7,20 +7,29 @@ import jakarta.persistence.Enumerated;
 import jakarta.persistence.Id;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.Table;
+import jakarta.persistence.UniqueConstraint;
 import java.time.Instant;
 import java.util.UUID;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 
 @Entity
-@Table(name = "trips")
+@Table(
+    name = "trips",
+    uniqueConstraints =
+        @UniqueConstraint(
+            name = "uk_trips_enterprise_trip_number",
+            columnNames = {"enterprise_id", "trip_number"}))
 public class Trip {
 
   @Id
   @Column(name = "id", nullable = false, updatable = false, length = 36)
   private String id;
 
-  @Column(name = "trip_number", nullable = false, length = 32, unique = true)
+  @Column(name = "enterprise_id", length = 36)
+  private String enterpriseId;
+
+  @Column(name = "trip_number", nullable = false, length = 32)
   private String tripNumber;
 
   @Enumerated(EnumType.STRING)
@@ -278,5 +287,13 @@ public class Trip {
 
   public void setUpdatedAt(Instant updatedAt) {
     this.updatedAt = updatedAt;
+  }
+
+  public String getEnterpriseId() {
+    return enterpriseId;
+  }
+
+  public void setEnterpriseId(String enterpriseId) {
+    this.enterpriseId = enterpriseId;
   }
 }

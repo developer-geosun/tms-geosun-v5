@@ -3,6 +3,7 @@ package com.geosun.tms.routes.service;
 import com.geosun.tms.auth.domain.user.User;
 import com.geosun.tms.auth.exception.ApiException;
 import com.geosun.tms.auth.repository.UserRepository;
+import com.geosun.tms.enterprise.port.CurrentEnterprise;
 import com.geosun.tms.routes.domain.Route;
 import com.geosun.tms.routes.domain.RoutePoint;
 import com.geosun.tms.routes.domain.RoutePointKind;
@@ -44,18 +45,21 @@ public class RouteService implements RouteContractsFacade {
   private final UserRepository userRepository;
   private final RouteRequestRepository routeRequestRepository;
   private final RouteRequestService routeRequestService;
+  private final CurrentEnterprise currentEnterprise;
 
   public RouteService(
       RouteRepository routeRepository,
       RouteCountryDistanceRepository routeCountryDistanceRepository,
       UserRepository userRepository,
       RouteRequestRepository routeRequestRepository,
-      RouteRequestService routeRequestService) {
+      RouteRequestService routeRequestService,
+      CurrentEnterprise currentEnterprise) {
     this.routeRepository = routeRepository;
     this.routeCountryDistanceRepository = routeCountryDistanceRepository;
     this.userRepository = userRepository;
     this.routeRequestRepository = routeRequestRepository;
     this.routeRequestService = routeRequestService;
+    this.currentEnterprise = currentEnterprise;
   }
 
   @Override
@@ -65,10 +69,15 @@ public class RouteService implements RouteContractsFacade {
     if (userId == null) {
       throw new IllegalArgumentException("userId must not be null");
     }
+    String enterpriseId = currentEnterprise.requireId();
     User user =
-        userRepository.findById(userId).orElseThrow(() -> ApiException.notFound("User not found"));
+        userRepository
+            .findById(userId)
+            .filter(u -> enterpriseId.equals(u.getEnterpriseId()))
+            .orElseThrow(() -> ApiException.notFound("User not found"));
 
     Route route = new Route();
+    route.setEnterpriseId(enterpriseId);
     route.setUser(user);
     route.setTitle(request.title());
     route.setRoutingProfile(request.routingProfile());
@@ -95,9 +104,10 @@ public class RouteService implements RouteContractsFacade {
   public RouteSnapshotDto duplicateMyRoute(String userId, Long routeId) {
     Route source =
         routeRepository
-            .findByIdAndUserIdWithPoints(routeId, userId)
+            .findByIdAndUserIdWithPoints(routeId, currentEnterprise.requireId(), userId)
             .orElseThrow(() -> ApiException.notFound("Route not found"));
     Route copy = new Route();
+    copy.setEnterpriseId(currentEnterprise.requireId());
     copy.setUser(source.getUser());
     copy.setTitle(source.getTitle() + DUPLICATE_ROUTE_TITLE_SUFFIX);
     copy.setRoutingProfile(source.getRoutingProfile());
@@ -118,7 +128,8 @@ public class RouteService implements RouteContractsFacade {
   public RouteSnapshotDto restoreMyRoute(String userId, Long routeId) {
     Route route =
         routeRepository
-            .findByIdAndUserIdWithPointsIncludingDeleted(routeId, userId)
+            .findByIdAndUserIdWithPointsIncludingDeleted(
+                routeId, currentEnterprise.requireId(), userId)
             .orElseThrow(() -> ApiException.notFound("Route not found"));
     if (!route.isDeleted()) {
       return toSnapshot(route);
@@ -138,7 +149,7 @@ public class RouteService implements RouteContractsFacade {
     }
     Route route =
         routeRepository
-            .findByIdAndUserIdWithPoints(routeId, userId)
+            .findByIdAndUserIdWithPoints(routeId, currentEnterprise.requireId(), userId)
             .orElseThrow(() -> ApiException.notFound("Route not found"));
     if (routeRequestRepository.existsByRoute_Id(routeId)) {
       throw ApiException.conflict(
@@ -178,11 +189,17 @@ public class RouteService implements RouteContractsFacade {
   @Override
   @Transactional(readOnly = true)
   public List<RouteSummaryDto> getMyRoutes(String userId, RouteListView view) {
+    String enterpriseId = currentEnterprise.requireId();
     List<Route> routes =
         switch (view) {
-          case ACTIVE -> routeRepository.findByUserIdAndDeletedFalseOrderByUpdatedAtDesc(userId);
-          case DELETED -> routeRepository.findByUserIdAndDeletedTrueOrderByUpdatedAtDesc(userId);
-          case ALL -> routeRepository.findByUserIdOrderByUpdatedAtDesc(userId);
+          case ACTIVE ->
+              routeRepository.findByEnterpriseIdAndUserIdAndDeletedFalseOrderByUpdatedAtDesc(
+                  enterpriseId, userId);
+          case DELETED ->
+              routeRepository.findByEnterpriseIdAndUserIdAndDeletedTrueOrderByUpdatedAtDesc(
+                  enterpriseId, userId);
+          case ALL ->
+              routeRepository.findByEnterpriseIdAndUserIdOrderByUpdatedAtDesc(enterpriseId, userId);
         };
     return routes.stream().map(this::toSummary).toList();
   }
@@ -190,12 +207,13 @@ public class RouteService implements RouteContractsFacade {
   @Override
   @Transactional
   public RouteSnapshotDto getMyRouteById(String userId, Long routeId) {
+    String enterpriseId = currentEnterprise.requireId();
     Route route =
         routeRepository
-            .findByIdAndUserIdWithPointsIncludingDeleted(routeId, userId)
+            .findByIdAndUserIdWithPointsIncludingDeleted(routeId, enterpriseId, userId)
             .orElseThrow(() -> ApiException.notFound("Route not found"));
     if (!route.isDeleted()) {
-      routeRepository.updateLastOpenedAt(routeId, userId, Instant.now());
+      routeRepository.updateLastOpenedAt(routeId, enterpriseId, userId, Instant.now());
     }
     return toSnapshot(route);
   }
@@ -204,7 +222,8 @@ public class RouteService implements RouteContractsFacade {
   public void softDeleteMyRoute(String userId, Long routeId) {
     Route route =
         routeRepository
-            .findByIdAndUserIdAndDeletedFalse(routeId, userId)
+            .findByIdAndEnterpriseIdAndUserIdAndDeletedFalse(
+                routeId, currentEnterprise.requireId(), userId)
             .orElseThrow(() -> ApiException.notFound("Route not found"));
     route.setDeleted(true);
     route.setDeletedAt(Instant.now());

@@ -1,6 +1,7 @@
 package com.geosun.tms.trips.service;
 
 import com.geosun.tms.auth.exception.ApiException;
+import com.geosun.tms.enterprise.port.CurrentEnterprise;
 import com.geosun.tms.reference.domain.Driver;
 import com.geosun.tms.reference.domain.Vehicle;
 import com.geosun.tms.reference.domain.VehicleCombination;
@@ -54,6 +55,7 @@ public class TripService {
   private final VehicleCombinationService combinationService;
   private final VehicleRepository vehicleRepository;
   private final RouteRequestRepository routeRequestRepository;
+  private final CurrentEnterprise currentEnterprise;
 
   public TripService(
       TripRepository tripRepository,
@@ -62,7 +64,9 @@ public class TripService {
       DriverService driverService,
       VehicleCombinationService combinationService,
       VehicleRepository vehicleRepository,
-      RouteRequestRepository routeRequestRepository) {
+      RouteRequestRepository routeRequestRepository,
+      CurrentEnterprise currentEnterprise) {
+    this.currentEnterprise = currentEnterprise;
     this.tripRepository = tripRepository;
     this.tripNumberSeqRepository = tripNumberSeqRepository;
     this.expenseReportRepository = expenseReportRepository;
@@ -87,15 +91,17 @@ public class TripService {
         PageRequest.of(safePage, safeSize, Sort.by(Sort.Direction.DESC, "createdAt"));
     Page<Trip> result;
     TripListView effective = view == null ? TripListView.ACTIVE : view;
+    String enterpriseId = currentEnterprise.requireId();
     if (effective == TripListView.ACTIVE
         && (status != null || driverId != null || from != null || to != null)) {
-      result = tripRepository.findActiveFiltered(status, driverId, from, to, pageable);
+      result =
+          tripRepository.findActiveFiltered(enterpriseId, status, driverId, from, to, pageable);
     } else {
       result =
           switch (effective) {
-            case ACTIVE -> tripRepository.findByDeletedFalse(pageable);
-            case DELETED -> tripRepository.findByDeletedTrue(pageable);
-            case ALL -> tripRepository.findAll(pageable);
+            case ACTIVE -> tripRepository.findByEnterpriseIdAndDeletedFalse(enterpriseId, pageable);
+            case DELETED -> tripRepository.findByEnterpriseIdAndDeletedTrue(enterpriseId, pageable);
+            case ALL -> tripRepository.findByEnterpriseId(enterpriseId, pageable);
           };
     }
     List<TripDto> content =
@@ -119,8 +125,8 @@ public class TripService {
     Pageable pageable =
         PageRequest.of(safePage, safeSize, Sort.by(Sort.Direction.DESC, "plannedStartAt"));
     Page<Trip> result =
-        tripRepository.findByDriverIdAndDeletedFalse(
-            Objects.requireNonNull(driver.getId()), pageable);
+        tripRepository.findByEnterpriseIdAndDriverIdAndDeletedFalse(
+            currentEnterprise.requireId(), Objects.requireNonNull(driver.getId()), pageable);
     List<TripDto> content =
         result.getContent().stream().map(t -> toDto(Objects.requireNonNull(t))).toList();
     return new PageResponse<>(
@@ -144,7 +150,9 @@ public class TripService {
   @Transactional
   public TripDto create(@NonNull CreateTripRequest request) {
     Trip trip = new Trip();
-    trip.setTripNumber(nextTripNumber());
+    String enterpriseId = currentEnterprise.requireId();
+    trip.setEnterpriseId(enterpriseId);
+    trip.setTripNumber(nextTripNumber(enterpriseId));
     trip.setStatus(TripStatus.DRAFT);
     applyAssignmentAndMeta(
         trip,
@@ -250,7 +258,9 @@ public class TripService {
   @NonNull
   public Trip requireTrip(@NonNull String id) {
     return Objects.requireNonNull(
-        tripRepository.findById(id).orElseThrow(() -> ApiException.notFound("Trip not found")));
+        tripRepository
+            .findByIdAndEnterpriseId(id, currentEnterprise.requireId())
+            .orElseThrow(() -> ApiException.notFound("Trip not found")));
   }
 
   @NonNull
@@ -287,7 +297,8 @@ public class TripService {
       String trailerId,
       boolean allowClear) {
     if (routeRequestId != null) {
-      if (!routeRequestRepository.existsById(routeRequestId)) {
+      if (!routeRequestRepository.existsByIdAndEnterpriseId(
+          routeRequestId, currentEnterprise.requireId())) {
         throw ApiException.notFound("Route request not found");
       }
       boolean conflict =
@@ -358,7 +369,8 @@ public class TripService {
     if (StringUtils.hasText(resolvedTractorId)) {
       Vehicle tractor =
           vehicleRepository
-              .findByIdAndDeletedFalse(Objects.requireNonNull(resolvedTractorId))
+              .findByIdAndEnterpriseIdAndDeletedFalse(
+                  Objects.requireNonNull(resolvedTractorId), currentEnterprise.requireId())
               .orElseThrow(() -> ApiException.notFound("Tractor not found"));
       if (tractor.getVehicleType() != VehicleType.SEMI_TRACTOR) {
         throw ApiException.conflict("INVALID_VEHICLE_TYPE", "Tractor must be SEMI_TRACTOR");
@@ -373,7 +385,8 @@ public class TripService {
     if (StringUtils.hasText(resolvedTrailerId)) {
       Vehicle trailer =
           vehicleRepository
-              .findByIdAndDeletedFalse(Objects.requireNonNull(resolvedTrailerId))
+              .findByIdAndEnterpriseIdAndDeletedFalse(
+                  Objects.requireNonNull(resolvedTrailerId), currentEnterprise.requireId())
               .orElseThrow(() -> ApiException.notFound("Trailer not found"));
       if (trailer.getVehicleType() != VehicleType.SEMI_TRAILER) {
         throw ApiException.conflict("INVALID_VEHICLE_TYPE", "Trailer must be SEMI_TRAILER");
@@ -400,10 +413,12 @@ public class TripService {
     }
     driverService.requireActiveDriver(Objects.requireNonNull(trip.getDriverId()));
     vehicleRepository
-        .findByIdAndDeletedFalse(Objects.requireNonNull(trip.getTractorId()))
+        .findByIdAndEnterpriseIdAndDeletedFalse(
+            Objects.requireNonNull(trip.getTractorId()), currentEnterprise.requireId())
         .orElseThrow(() -> ApiException.notFound("Tractor not found"));
     vehicleRepository
-        .findByIdAndDeletedFalse(Objects.requireNonNull(trip.getTrailerId()))
+        .findByIdAndEnterpriseIdAndDeletedFalse(
+            Objects.requireNonNull(trip.getTrailerId()), currentEnterprise.requireId())
         .orElseThrow(() -> ApiException.notFound("Trailer not found"));
   }
 
@@ -420,6 +435,7 @@ public class TripService {
   private void assertNoOverlap(Trip trip) {
     List<Trip> overlaps =
         tripRepository.findOverlapping(
+            currentEnterprise.requireId(),
             Objects.requireNonNull(trip.getId()),
             OVERLAP_STATUSES,
             Objects.requireNonNull(trip.getPlannedStartAt()),
@@ -450,14 +466,16 @@ public class TripService {
     }
   }
 
-  private String nextTripNumber() {
+  /** Наступний номер рейсу: лічильник окремий для пари (підприємство, рік). */
+  private String nextTripNumber(@NonNull String enterpriseId) {
     int year = Year.now(ZoneOffset.UTC).getValue();
     TripNumberSeq seq =
         tripNumberSeqRepository
-            .findByYearForUpdate(year)
+            .findByEnterpriseIdAndYearForUpdate(enterpriseId, year)
             .orElseGet(
                 () -> {
                   TripNumberSeq created = new TripNumberSeq();
+                  created.setEnterpriseId(enterpriseId);
                   created.setYear(year);
                   created.setLastValue(0);
                   return tripNumberSeqRepository.saveAndFlush(created);
@@ -465,7 +483,7 @@ public class TripService {
     // повторне читання з lock після create
     seq =
         tripNumberSeqRepository
-            .findByYearForUpdate(year)
+            .findByEnterpriseIdAndYearForUpdate(enterpriseId, year)
             .orElseThrow(
                 () -> ApiException.conflict("TRIP_NUMBER_SEQ", "Cannot allocate trip number"));
     seq.setLastValue(seq.getLastValue() + 1);

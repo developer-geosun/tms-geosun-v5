@@ -24,6 +24,12 @@ app:
     admin:
       email:
       password:
+    platform-operator:
+      email:
+      password:
+  enterprise:
+    default-code:
+    default-name:
   storage:
     type: local
     local:

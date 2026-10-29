@@ -46,4 +46,21 @@ describe('app routes', () => {
     expect(appShell?.canActivate?.length).toBeGreaterThan(0);
     expect(appShell?.canActivateChild?.length).toBeGreaterThan(0);
   });
+
+  it('has separate platform operator login and cabinet routes', () => {
+    const platformLogin = findChildRoute('platform/login');
+    const platformShell = routes.find((route) => route.path === 'platform');
+    const enterprises = platformShell?.children?.find((route) => route.path === 'enterprises');
+    const currencies = platformShell?.children?.find((route) => route.path === 'currencies');
+    const countries = platformShell?.children?.find((route) => route.path === 'country-reference');
+
+    expect(platformLogin?.loadComponent).toBeDefined();
+    expect(platformShell?.loadComponent).toBeDefined();
+    expect(platformShell?.canActivate?.length).toBeGreaterThan(0);
+    expect(enterprises?.loadComponent).toBeDefined();
+    expect(currencies?.data?.['referenceScope']).toBe('platform');
+    expect(countries?.data?.['referenceScope']).toBe('platform');
+    // Вхід оператора не є дочірнім маршрутом форми співробітника
+    expect(findChildRoute('login')?.children).toBeUndefined();
+  });
 });

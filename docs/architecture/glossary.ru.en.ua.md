@@ -1,7 +1,7 @@
 # Ubiquitous language / Глосарій / Глоссарий
 
 **Дата создания:** 17 сентября 2026, 14:43 (UTC+3)  
-**Дата изменения:** 17 сентября 2026, 14:43 (UTC+3)
+**Дата изменения:** 29 октября 2026, 13:30 (UTC+3)
 
 Единый язык домена TMS GeoSun. Колонка **Term** — канон в коде и API (английский).  
 При споре о правилах побеждает спека из [`BASELINE.ru.md`](../specs/BASELINE.ru.md), не этот файл.
@@ -12,7 +12,9 @@
 
 | Term | Українська | Русский | English |
 |------|------------|---------|---------|
-| User | обліковий запис системи (email, роль) | учётка системы (email, роль) | system account (email, role) |
+| Enterprise | підприємство: межа даних в одному застосунку (код входу, свої люди й операції) | предприятие: граница данных в одном приложении (код входа, свои люди и операции) | enterprise: data boundary in one app (login code, own people and operations) |
+| Platform operator | оператор платформи: обліковка поза підприємством, створює і призупиняє підприємства | оператор платформы: учётка вне предприятия, создаёт и приостанавливает предприятия | platform operator: account outside enterprises, creates and suspends enterprises |
+| User | обліковий запис системи (email, роль) всередині одного підприємства | учётка системы (email, роль) внутри одного предприятия | system account (email, role) inside exactly one enterprise |
 | UserProfile | контактна картка обліковки (ПІБ, телефони, канали) | контактная карточка учётки (ФИО, телефоны, каналы) | account contact card (name, phones, channels) |
 | Role | роль RBAC: `admin`, `manager`, `driver`, `user` | роль RBAC: `admin`, `manager`, `driver`, `user` | RBAC role: `admin`, `manager`, `driver`, `user` |
 | Route | збережений знімок маршруту (точки, polyline), **не** рейс | сохранённый снимок маршрута (точки, polyline), **не** рейс | saved route snapshot (points, polyline), **not** a trip |

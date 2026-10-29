@@ -83,6 +83,18 @@
     text-transform: uppercase;
     color: var(--mat-sys-on-surface-variant);
   }
+
+  /* Код підприємства співробітника — під назвою продукту. */
+  .enterprise-code {
+    margin-top: 2px;
+    font-family: var(--font-mono);
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--mat-sys-primary);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
 }
 
 .drawer-close {
@@ -385,6 +397,13 @@
     font-size: 0.75rem;
     color: var(--mat-sys-on-surface-variant);
     text-transform: capitalize;
+  }
+
+  .enterprise {
+    margin-top: 2px;
+    font-size: 0.75rem;
+    color: var(--mat-sys-on-surface-variant);
+    word-break: break-all;
   }
 }
 

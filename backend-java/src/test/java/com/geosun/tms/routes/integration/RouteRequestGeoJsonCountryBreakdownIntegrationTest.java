@@ -14,6 +14,7 @@ import com.geosun.tms.auth.domain.user.User;
 import com.geosun.tms.auth.dto.request.LoginRequest;
 import com.geosun.tms.auth.repository.UserRepository;
 import com.geosun.tms.routes.service.PolylineDecoder;
+import com.geosun.tms.support.TestEnterprise;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -95,6 +96,7 @@ class RouteRequestGeoJsonCountryBreakdownIntegrationTest {
 
   private User createUser(String email, String password, Role role) {
     User user = new User();
+    user.setEnterpriseId(TestEnterprise.ID);
     user.setEmail(email);
     user.setPasswordHash(passwordEncoder.encode(password));
     user.setRole(role);
@@ -109,7 +111,7 @@ class RouteRequestGeoJsonCountryBreakdownIntegrationTest {
             .perform(
                 post("/api/v1/auth/login")
                     .contentType(jsonContentType())
-                    .content(toJson(new LoginRequest(email, password))))
+                    .content(toJson(new LoginRequest(TestEnterprise.CODE, email, password))))
             .andExpect(status().isOk())
             .andReturn();
     JsonNode json = objectMapper.readTree(loginResult.getResponse().getContentAsString());

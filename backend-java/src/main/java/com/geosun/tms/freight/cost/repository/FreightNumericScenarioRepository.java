@@ -7,13 +7,17 @@ import org.springframework.data.jpa.repository.JpaRepository;
 
 public interface FreightNumericScenarioRepository
     extends JpaRepository<FreightNumericScenario, String> {
-  List<FreightNumericScenario> findByActiveTrueOrderByNameAsc();
+  List<FreightNumericScenario> findByEnterpriseIdAndActiveTrueOrderByNameAsc(String enterpriseId);
 
-  List<FreightNumericScenario> findAllByOrderByNameAsc();
+  List<FreightNumericScenario> findByEnterpriseIdOrderByNameAsc(String enterpriseId);
 
-  Optional<FreightNumericScenario> findByNameIgnoreCaseAndActiveTrue(String name);
+  Optional<FreightNumericScenario> findByIdAndEnterpriseId(String id, String enterpriseId);
 
-  boolean existsByNameIgnoreCaseAndActiveTrueAndIdNot(String name, String excludeId);
+  Optional<FreightNumericScenario> findByEnterpriseIdAndNameIgnoreCaseAndActiveTrue(
+      String enterpriseId, String name);
+
+  boolean existsByEnterpriseIdAndNameIgnoreCaseAndActiveTrueAndIdNot(
+      String enterpriseId, String name, String excludeId);
 
   boolean existsByTollTariffSet_IdAndActiveTrue(String tollTariffSetId);
 

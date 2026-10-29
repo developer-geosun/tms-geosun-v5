@@ -1,7 +1,7 @@
 # Technical Specification / Техническое задание: Chatbots Telegram, WhatsApp, Viber / Чат-боти месенджерів
 
 **Дата создания:** 9 сентября 2026, 16:12 (UTC+3)  
-**Дата изменения:** 27 октября 2026, 11:12 (UTC+3)
+**Дата изменения:** 29 октября 2026, 13:30 (UTC+3)
 
 ## Статус
 - **Реализация:** частично
@@ -43,6 +43,7 @@
 - **Related docs / Связанные документы:**
   - [`user-profile.ru.en.md`](user-profile.ru.en.md) — телефоны, флаги месенджеров, каналы связи; источник контакта, не identity бота.
   - [`auth-authentication-authorization.ru.en.md`](auth-authentication-authorization.ru.en.md) — роли `USER` / `MANAGER` / `DRIVER` / `ADMIN`, `ApiException`.
+  - [`multi-enterprise.ru.en.md`](multi-enterprise.ru.en.md) (B21) — повтор внешней привязки пользователю другого предприятия отклоняется.
   - [`routes-server-workflow-and-freight-quoting.ru.en.md`](routes-server-workflow-and-freight-quoting.ru.en.md) — заявка и quote (`NEW` → `QUOTED`, quote `SENT`).
   - [`trips-and-driver-expense-reports.ru.en.md`](trips-and-driver-expense-reports.ru.en.md) — рейс и expense report.
   - [`file-storage.ru.md`](file-storage.ru.md) — **не** используется в v1 (вложения из чата не принимаем).

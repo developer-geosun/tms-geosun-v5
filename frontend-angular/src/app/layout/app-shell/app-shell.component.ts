@@ -93,6 +93,8 @@ export class AppShellComponent {
   readonly availableRoles = this.authService.availableRoles;
   readonly currentRole = computed(() => this.authService.user()?.role ?? null);
   readonly userEmail = computed(() => this.authService.user()?.email ?? '');
+  /** Код підприємства поточного співробітника. */
+  readonly enterpriseCode = this.authService.enterpriseCode;
   readonly currentLanguage = this.languageService.language;
   readonly currentTheme = this.themeService.theme;
 

@@ -1,0 +1,78 @@
+<section class="auth-form-page">
+  <p class="eyebrow">{{ 'shell.brandProduct' | translate }}</p>
+  <h1 class="headline">{{ 'pages.platformLogin.title' | translate }}</h1>
+  <p class="supporting">{{ 'pages.platformLogin.subtitle' | translate }}</p>
+
+  <form [formGroup]="form" (ngSubmit)="submit()" class="auth-form login-form">
+    <mat-form-field appearance="outline">
+      <mat-label>{{ 'pages.platformLogin.email' | translate }}</mat-label>
+      <input matInput type="email" formControlName="email" autocomplete="username" />
+    </mat-form-field>
+
+    <mat-form-field appearance="outline">
+      <mat-label>{{ 'pages.platformLogin.password' | translate }}</mat-label>
+      <input
+        matInput
+        [type]="isPasswordVisible() ? 'text' : 'password'"
+        formControlName="password"
+        autocomplete="current-password"
+      />
+      <button
+        type="button"
+        mat-icon-button
+        matSuffix
+        [attr.aria-label]="isPasswordVisible() ? 'Hide password' : 'Show password'"
+        [attr.aria-pressed]="isPasswordVisible()"
+        (click)="isPasswordVisible.set(!isPasswordVisible())"
+      >
+        <mat-icon [fontIcon]="isPasswordVisible() ? 'visibility_off' : 'visibility'"></mat-icon>
+      </button>
+    </mat-form-field>
+
+    @if (errorCode() === '401') {
+      <p class="banner banner--error">
+        <mat-icon fontIcon="error_outline" aria-hidden="true"></mat-icon>
+        <span>{{ 'pages.platformLogin.error401' | translate }}</span>
+      </p>
+    }
+    @if (errorCode() === 'account_disabled') {
+      <p class="banner banner--error">
+        <mat-icon fontIcon="error_outline" aria-hidden="true"></mat-icon>
+        <span>{{ 'pages.platformLogin.errorAccountDisabled' | translate }}</span>
+      </p>
+    }
+    @if (errorCode() === '429') {
+      <p class="banner banner--error">
+        <mat-icon fontIcon="error_outline" aria-hidden="true"></mat-icon>
+        <span>{{ 'pages.platformLogin.error429' | translate }}</span>
+      </p>
+    }
+    @if (errorCode() === 'generic') {
+      <p class="banner banner--error">
+        <mat-icon fontIcon="error_outline" aria-hidden="true"></mat-icon>
+        <span>{{ 'pages.platformLogin.errorGeneric' | translate }}</span>
+      </p>
+    }
+    @if (hasSuccess()) {
+      <p class="banner banner--success">
+        <mat-icon fontIcon="check_circle_outline" aria-hidden="true"></mat-icon>
+        <span>{{ 'pages.platformLogin.success' | translate }}</span>
+      </p>
+    }
+
+    <button class="submit-button" mat-flat-button color="primary" type="submit" [disabled]="isLoading()">
+      @if (isLoading()) {
+        <span class="loading-content">
+          <mat-spinner diameter="18"></mat-spinner>
+          <span>{{ 'pages.platformLogin.loading' | translate }}</span>
+        </span>
+      } @else {
+        {{ 'pages.platformLogin.submit' | translate }}
+      }
+    </button>
+  </form>
+
+  <p class="switch-auth">
+    <a [routerLink]="['/login']">{{ 'pages.platformLogin.toEmployeeLogin' | translate }}</a>
+  </p>
+</section>

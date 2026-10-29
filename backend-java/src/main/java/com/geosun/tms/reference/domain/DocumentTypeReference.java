@@ -21,6 +21,9 @@ public class DocumentTypeReference {
   @Column(name = "id", nullable = false, updatable = false, length = 36)
   private String id;
 
+  @Column(name = "enterprise_id", length = 36)
+  private String enterpriseId;
+
   @Column(name = "name_uk", nullable = false, length = 128)
   private String nameUk;
 
@@ -151,5 +154,13 @@ public class DocumentTypeReference {
 
   public Instant getUpdatedAt() {
     return updatedAt;
+  }
+
+  public String getEnterpriseId() {
+    return enterpriseId;
+  }
+
+  public void setEnterpriseId(String enterpriseId) {
+    this.enterpriseId = enterpriseId;
   }
 }

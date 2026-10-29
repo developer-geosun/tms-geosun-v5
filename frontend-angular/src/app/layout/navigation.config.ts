@@ -111,20 +111,7 @@ export const NAVIGATION_ITEMS: readonly NavigationItem[] = [
     roles: ['admin', 'manager'],
     section: 'ops'
   },
-  {
-    route: '/admin/currencies',
-    labelKey: 'navigation.adminCurrencies',
-    icon: 'payments',
-    roles: ['admin', 'manager'],
-    section: 'refs'
-  },
-  {
-    route: '/admin/country-reference',
-    labelKey: 'navigation.adminCountryReference',
-    icon: 'public',
-    roles: ['admin', 'manager'],
-    section: 'refs'
-  },
+  // Валюти й країни прибрано з меню співробітника: запис довідників тепер на рівні платформи
   {
     route: '/admin/freight-numeric-scenarios',
     labelKey: 'navigation.adminFreightNumericScenarios',

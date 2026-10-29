@@ -38,10 +38,13 @@ import com.geosun.tms.chatbot.repository.BotIdentityRepository;
 import com.geosun.tms.chatbot.repository.BotLinkCodeRepository;
 import com.geosun.tms.chatbot.repository.BotMessageLogRepository;
 import com.geosun.tms.chatbot.service.ChatbotOutboundNotifier;
+import com.geosun.tms.enterprise.domain.Enterprise;
+import com.geosun.tms.enterprise.repository.EnterpriseRepository;
 import com.geosun.tms.routes.repository.RouteCountryDistanceRepository;
 import com.geosun.tms.routes.repository.RouteRepository;
 import com.geosun.tms.routes.repository.RouteRequestRepository;
 import com.geosun.tms.routes.repository.RouteRequestStatusHistoryRepository;
+import com.geosun.tms.support.TestEnterprise;
 import jakarta.mail.internet.MimeMessage;
 import java.time.Instant;
 import java.util.HashMap;
@@ -95,6 +98,7 @@ class FreightRequestNotifyIntegrationTest {
   @Autowired private PasswordEncoder passwordEncoder;
   @Autowired private FreightRequestCreatedNotifyProperties notifyProperties;
   @Autowired private JdbcTemplate jdbcTemplate;
+  @Autowired private EnterpriseRepository enterpriseRepository;
 
   @MockBean private JavaMailSender javaMailSender;
   @MockBean private TelegramApiClient telegramApiClient;
@@ -242,6 +246,39 @@ class FreightRequestNotifyIntegrationTest {
   }
 
   @Test
+  void createRouteRequest_adminOfAnotherEnterprise_notNotified() throws Exception {
+    Enterprise other = new Enterprise();
+    other.setCode("fr-other-ent");
+    other.setName("Other");
+    other.setActive(true);
+    String otherId = Objects.requireNonNull(enterpriseRepository.saveAndFlush(other).getId());
+    try {
+      User foreignAdmin = saveUser("fr-foreign-admin@example.com", "Admin123!", Role.ADMIN);
+      foreignAdmin.setEnterpriseId(otherId);
+      userRepository.saveAndFlush(foreignAdmin);
+      saveMessengersProfile(Objects.requireNonNull(foreignAdmin.getId()));
+      saveTelegramIdentity(Objects.requireNonNull(foreignAdmin.getId()), "900099", "ua");
+
+      User ownAdmin = saveUser("fr-own-admin@example.com", "Admin123!", Role.ADMIN);
+      saveMessengersProfile(Objects.requireNonNull(ownAdmin.getId()));
+      saveTelegramIdentity(Objects.requireNonNull(ownAdmin.getId()), "900098", "ua");
+
+      User owner = saveUser("fr-owner-scope@example.com", "Secret123", Role.USER);
+      String access = login(Objects.requireNonNull(owner.getEmail()), "Secret123");
+      String routeId = createRoute(access, "Scope route");
+      createRouteRequest(access, routeId);
+
+      verify(telegramApiClient, times(1))
+          .sendMessage(eqChatId("900098"), anyMessageText(), anyBoolean());
+      verify(telegramApiClient, never())
+          .sendMessage(eqChatId("900099"), anyMessageText(), anyBoolean());
+    } finally {
+      clearData();
+      enterpriseRepository.deleteById(otherId);
+    }
+  }
+
+  @Test
   void createRouteRequest_sendFail_stillCreatesRequest() throws Exception {
     User admin = saveUser("fr-admin-fail@example.com", "Admin123!", Role.ADMIN);
     saveMessengersProfile(Objects.requireNonNull(admin.getId()));
@@ -299,6 +336,7 @@ class FreightRequestNotifyIntegrationTest {
 
   private User saveUser(String email, String password, Role role) {
     User user = new User();
+    user.setEnterpriseId(TestEnterprise.ID);
     user.setId(UUID.randomUUID().toString());
     user.setEmail(email);
     user.setPasswordHash(passwordEncoder.encode(password));
@@ -376,7 +414,7 @@ class FreightRequestNotifyIntegrationTest {
             .perform(
                 post("/api/v1/auth/login")
                     .contentType(jsonContentType())
-                    .content(toJson(new LoginRequest(email, password))))
+                    .content(toJson(new LoginRequest(TestEnterprise.CODE, email, password))))
             .andExpect(status().isOk())
             .andReturn();
     JsonNode json = objectMapper.readTree(loginResult.getResponse().getContentAsString());

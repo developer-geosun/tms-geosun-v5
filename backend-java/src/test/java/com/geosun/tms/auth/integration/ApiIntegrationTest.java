@@ -28,6 +28,7 @@ import com.geosun.tms.auth.dto.request.ResetPasswordRequest;
 import com.geosun.tms.auth.dto.request.VerifyEmailRequest;
 import com.geosun.tms.auth.ratelimit.RateLimitService;
 import com.geosun.tms.auth.repository.UserRepository;
+import com.geosun.tms.support.TestEnterprise;
 import jakarta.mail.BodyPart;
 import jakarta.mail.Multipart;
 import jakarta.mail.internet.MimeMessage;
@@ -107,7 +108,9 @@ class ApiIntegrationTest {
         .perform(
             post("/api/v1/auth/register")
                 .contentType(jsonContentType())
-                .content(toJson(new RegisterRequest("new@example.com", "Secret123"))))
+                .content(
+                    toJson(
+                        new RegisterRequest(TestEnterprise.CODE, "new@example.com", "Secret123"))))
         .andExpect(status().isCreated())
         .andExpect(jsonPath("$.email").value("new@example.com"))
         .andExpect(jsonPath("$.role").value("USER"));
@@ -121,13 +124,16 @@ class ApiIntegrationTest {
         .perform(
             post("/api/v1/auth/register")
                 .contentType(jsonContentType())
-                .content(toJson(new RegisterRequest("smtp-fail@example.com", "Secret123"))))
+                .content(
+                    toJson(
+                        new RegisterRequest(
+                            TestEnterprise.CODE, "smtp-fail@example.com", "Secret123"))))
         .andExpect(status().isCreated());
   }
 
   @Test
   void register_duplicateEmail_returns409() throws Exception {
-    String body = toJson(new RegisterRequest("dup@example.com", "Secret123"));
+    String body = toJson(new RegisterRequest(TestEnterprise.CODE, "dup@example.com", "Secret123"));
     mockMvc
         .perform(post("/api/v1/auth/register").contentType(jsonContentType()).content(body))
         .andExpect(status().isCreated());
@@ -143,7 +149,8 @@ class ApiIntegrationTest {
         .perform(
             post("/api/v1/auth/register")
                 .contentType(jsonContentType())
-                .content(toJson(new RegisterRequest("bad@example.com", "short"))))
+                .content(
+                    toJson(new RegisterRequest(TestEnterprise.CODE, "bad@example.com", "short"))))
         .andExpect(status().isBadRequest())
         .andExpect(jsonPath("$.code").value("VALIDATION_ERROR"));
   }
@@ -153,12 +160,18 @@ class ApiIntegrationTest {
     mockMvc.perform(
         post("/api/v1/auth/register")
             .contentType(jsonContentType())
-            .content(toJson(new RegisterRequest("unverified@example.com", "Secret123"))));
+            .content(
+                toJson(
+                    new RegisterRequest(
+                        TestEnterprise.CODE, "unverified@example.com", "Secret123"))));
     mockMvc
         .perform(
             post("/api/v1/auth/login")
                 .contentType(jsonContentType())
-                .content(toJson(new LoginRequest("unverified@example.com", "Secret123"))))
+                .content(
+                    toJson(
+                        new LoginRequest(
+                            TestEnterprise.CODE, "unverified@example.com", "Secret123"))))
         .andExpect(status().isForbidden())
         .andExpect(jsonPath("$.code").value("EMAIL_NOT_VERIFIED"));
   }
@@ -168,7 +181,8 @@ class ApiIntegrationTest {
     mockMvc.perform(
         post("/api/v1/auth/register")
             .contentType(jsonContentType())
-            .content(toJson(new RegisterRequest("flow@example.com", "Secret123"))));
+            .content(
+                toJson(new RegisterRequest(TestEnterprise.CODE, "flow@example.com", "Secret123"))));
 
     ArgumentCaptor<MimeMessage> mailCap = mimeMessageCaptor();
     verifyMailSentAndCapture(javaMailSender, mailCap);
@@ -187,7 +201,10 @@ class ApiIntegrationTest {
             .perform(
                 post("/api/v1/auth/login")
                     .contentType(jsonContentType())
-                    .content(toJson(new LoginRequest("flow@example.com", "Secret123"))))
+                    .content(
+                        toJson(
+                            new LoginRequest(
+                                TestEnterprise.CODE, "flow@example.com", "Secret123"))))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.tokenType").value("Bearer"))
             .andExpect(jsonPath("$.expiresIn").value(900))
@@ -220,7 +237,10 @@ class ApiIntegrationTest {
     mockMvc.perform(
         post("/api/v1/auth/register")
             .contentType(jsonContentType())
-            .content(toJson(new RegisterRequest("angular-mail@example.com", "Secret123"))));
+            .content(
+                toJson(
+                    new RegisterRequest(
+                        TestEnterprise.CODE, "angular-mail@example.com", "Secret123"))));
 
     ArgumentCaptor<MimeMessage> mailCap = mimeMessageCaptor();
     verifyMailSentAndCapture(javaMailSender, mailCap);
@@ -237,7 +257,10 @@ class ApiIntegrationTest {
         post("/api/v1/auth/register")
             .header(AppClient.HEADER_NAME, "flutter")
             .contentType(jsonContentType())
-            .content(toJson(new RegisterRequest("flutter-mail@example.com", "Secret123"))));
+            .content(
+                toJson(
+                    new RegisterRequest(
+                        TestEnterprise.CODE, "flutter-mail@example.com", "Secret123"))));
 
     ArgumentCaptor<MimeMessage> mailCap = mimeMessageCaptor();
     verifyMailSentAndCapture(javaMailSender, mailCap);
@@ -257,7 +280,10 @@ class ApiIntegrationTest {
             post("/api/v1/auth/forgot-password")
                 .header(AppClient.HEADER_NAME, "FLUTTER")
                 .contentType(jsonContentType())
-                .content(toJson(new ForgotPasswordRequest("flutter-reset@example.com"))))
+                .content(
+                    toJson(
+                        new ForgotPasswordRequest(
+                            TestEnterprise.CODE, "flutter-reset@example.com"))))
         .andExpect(status().isOk());
 
     ArgumentCaptor<MimeMessage> mailCap = mimeMessageCaptor();
@@ -292,7 +318,9 @@ class ApiIntegrationTest {
         .perform(
             post("/api/v1/auth/resend-verification")
                 .contentType(jsonContentType())
-                .content(toJson(new ResendVerificationRequest("ghost@example.com"))))
+                .content(
+                    toJson(
+                        new ResendVerificationRequest(TestEnterprise.CODE, "ghost@example.com"))))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.success").value(true));
     verify(javaMailSender, times(0)).send(anyMailMessage());
@@ -303,7 +331,10 @@ class ApiIntegrationTest {
     mockMvc.perform(
         post("/api/v1/auth/register")
             .contentType(jsonContentType())
-            .content(toJson(new RegisterRequest("resend503@example.com", "Secret123"))));
+            .content(
+                toJson(
+                    new RegisterRequest(
+                        TestEnterprise.CODE, "resend503@example.com", "Secret123"))));
     verify(javaMailSender, times(1)).send(anyMailMessage());
 
     org.mockito.Mockito.reset(javaMailSender);
@@ -315,7 +346,10 @@ class ApiIntegrationTest {
         .perform(
             post("/api/v1/auth/resend-verification")
                 .contentType(jsonContentType())
-                .content(toJson(new ResendVerificationRequest("resend503@example.com"))))
+                .content(
+                    toJson(
+                        new ResendVerificationRequest(
+                            TestEnterprise.CODE, "resend503@example.com"))))
         .andExpect(status().isServiceUnavailable())
         .andExpect(jsonPath("$.code").value("EMAIL_DELIVERY_FAILED"));
   }
@@ -357,7 +391,10 @@ class ApiIntegrationTest {
     mockMvc.perform(
         post("/api/v1/auth/register")
             .contentType(jsonContentType())
-            .content(toJson(new RegisterRequest("ratelimit@example.com", "Secret123"))));
+            .content(
+                toJson(
+                    new RegisterRequest(
+                        TestEnterprise.CODE, "ratelimit@example.com", "Secret123"))));
     ArgumentCaptor<MimeMessage> cap = mimeMessageCaptor();
     verifyMailSentAndCapture(javaMailSender, cap);
     mockMvc.perform(
@@ -368,7 +405,8 @@ class ApiIntegrationTest {
                     new VerifyEmailRequest(
                         extractVerificationToken(requireMailText(capturedMail(cap)))))));
 
-    String loginBody = toJson(new LoginRequest("ratelimit@example.com", "WrongPass99"));
+    String loginBody =
+        toJson(new LoginRequest(TestEnterprise.CODE, "ratelimit@example.com", "WrongPass99"));
     for (int i = 0; i < 5; i++) {
       mockMvc
           .perform(post("/api/v1/auth/login").contentType(jsonContentType()).content(loginBody))
@@ -384,6 +422,7 @@ class ApiIntegrationTest {
   @Test
   void disabledUser_login_returns403() throws Exception {
     User u = new User();
+    u.setEnterpriseId(TestEnterprise.ID);
     u.setEmail("disabled@example.com");
     u.setPasswordHash(passwordEncoder.encode("Secret123"));
     u.setRole(Role.USER);
@@ -395,7 +434,10 @@ class ApiIntegrationTest {
         .perform(
             post("/api/v1/auth/login")
                 .contentType(jsonContentType())
-                .content(toJson(new LoginRequest("disabled@example.com", "Secret123"))))
+                .content(
+                    toJson(
+                        new LoginRequest(
+                            TestEnterprise.CODE, "disabled@example.com", "Secret123"))))
         .andExpect(status().isForbidden())
         .andExpect(jsonPath("$.code").value("ACCOUNT_DISABLED"));
   }
@@ -403,6 +445,7 @@ class ApiIntegrationTest {
   @Test
   void softDeletedUser_login_returns403() throws Exception {
     User u = new User();
+    u.setEnterpriseId(TestEnterprise.ID);
     u.setEmail("deletedlogin@example.com");
     u.setPasswordHash(passwordEncoder.encode("Secret123"));
     u.setRole(Role.USER);
@@ -415,7 +458,10 @@ class ApiIntegrationTest {
         .perform(
             post("/api/v1/auth/login")
                 .contentType(jsonContentType())
-                .content(toJson(new LoginRequest("deletedlogin@example.com", "Secret123"))))
+                .content(
+                    toJson(
+                        new LoginRequest(
+                            TestEnterprise.CODE, "deletedlogin@example.com", "Secret123"))))
         .andExpect(status().isForbidden())
         .andExpect(jsonPath("$.code").value("USER_DELETED"));
   }
@@ -423,6 +469,7 @@ class ApiIntegrationTest {
   @Test
   void adminSoftDelete_idempotent() throws Exception {
     User admin = new User();
+    admin.setEnterpriseId(TestEnterprise.ID);
     admin.setEmail("admin@example.com");
     admin.setPasswordHash(passwordEncoder.encode("Admin123!"));
     admin.setRole(Role.ADMIN);
@@ -430,6 +477,7 @@ class ApiIntegrationTest {
     userRepository.save(admin);
 
     User victim = new User();
+    victim.setEnterpriseId(TestEnterprise.ID);
     victim.setEmail("victim@example.com");
     victim.setPasswordHash(passwordEncoder.encode("Secret123"));
     victim.setRole(Role.USER);
@@ -464,7 +512,9 @@ class ApiIntegrationTest {
         .perform(
             post("/api/v1/auth/forgot-password")
                 .contentType(jsonContentType())
-                .content(toJson(new ForgotPasswordRequest("ghost-reset@example.com"))))
+                .content(
+                    toJson(
+                        new ForgotPasswordRequest(TestEnterprise.CODE, "ghost-reset@example.com"))))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.success").value(true));
     verify(javaMailSender, times(0)).send(anyMailMessage());
@@ -473,6 +523,7 @@ class ApiIntegrationTest {
   @Test
   void forgotPassword_disabledUser_returns403() throws Exception {
     User u = new User();
+    u.setEnterpriseId(TestEnterprise.ID);
     u.setEmail("disabled-reset@example.com");
     u.setPasswordHash(passwordEncoder.encode("Secret123"));
     u.setRole(Role.USER);
@@ -484,7 +535,10 @@ class ApiIntegrationTest {
         .perform(
             post("/api/v1/auth/forgot-password")
                 .contentType(jsonContentType())
-                .content(toJson(new ForgotPasswordRequest("disabled-reset@example.com"))))
+                .content(
+                    toJson(
+                        new ForgotPasswordRequest(
+                            TestEnterprise.CODE, "disabled-reset@example.com"))))
         .andExpect(status().isForbidden())
         .andExpect(jsonPath("$.code").value("ACCOUNT_DISABLED"));
     verify(javaMailSender, times(0)).send(anyMailMessage());
@@ -493,6 +547,7 @@ class ApiIntegrationTest {
   @Test
   void forgotPassword_deletedUser_returns403() throws Exception {
     User u = new User();
+    u.setEnterpriseId(TestEnterprise.ID);
     u.setEmail("deleted-reset@example.com");
     u.setPasswordHash(passwordEncoder.encode("Secret123"));
     u.setRole(Role.USER);
@@ -506,7 +561,10 @@ class ApiIntegrationTest {
         .perform(
             post("/api/v1/auth/forgot-password")
                 .contentType(jsonContentType())
-                .content(toJson(new ForgotPasswordRequest("deleted-reset@example.com"))))
+                .content(
+                    toJson(
+                        new ForgotPasswordRequest(
+                            TestEnterprise.CODE, "deleted-reset@example.com"))))
         .andExpect(status().isForbidden())
         .andExpect(jsonPath("$.code").value("USER_DELETED"));
     verify(javaMailSender, times(0)).send(anyMailMessage());
@@ -517,7 +575,10 @@ class ApiIntegrationTest {
     mockMvc.perform(
         post("/api/v1/auth/register")
             .contentType(jsonContentType())
-            .content(toJson(new RegisterRequest("unverified-reset@example.com", "Secret123"))));
+            .content(
+                toJson(
+                    new RegisterRequest(
+                        TestEnterprise.CODE, "unverified-reset@example.com", "Secret123"))));
     verify(javaMailSender, times(1)).send(anyMailMessage());
     org.mockito.Mockito.reset(javaMailSender);
     stubMailSenderSuccess();
@@ -526,7 +587,10 @@ class ApiIntegrationTest {
         .perform(
             post("/api/v1/auth/forgot-password")
                 .contentType(jsonContentType())
-                .content(toJson(new ForgotPasswordRequest("unverified-reset@example.com"))))
+                .content(
+                    toJson(
+                        new ForgotPasswordRequest(
+                            TestEnterprise.CODE, "unverified-reset@example.com"))))
         .andExpect(status().isForbidden())
         .andExpect(jsonPath("$.code").value("EMAIL_NOT_VERIFIED"));
     verify(javaMailSender, times(0)).send(anyMailMessage());
@@ -541,7 +605,9 @@ class ApiIntegrationTest {
         .perform(
             post("/api/v1/auth/forgot-password")
                 .contentType(jsonContentType())
-                .content(toJson(new ForgotPasswordRequest("reset-flow@example.com"))))
+                .content(
+                    toJson(
+                        new ForgotPasswordRequest(TestEnterprise.CODE, "reset-flow@example.com"))))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.success").value(true));
 
@@ -569,7 +635,10 @@ class ApiIntegrationTest {
         .perform(
             post("/api/v1/auth/login")
                 .contentType(jsonContentType())
-                .content(toJson(new LoginRequest("reset-flow@example.com", "Secret123"))))
+                .content(
+                    toJson(
+                        new LoginRequest(
+                            TestEnterprise.CODE, "reset-flow@example.com", "Secret123"))))
         .andExpect(status().isUnauthorized())
         .andExpect(jsonPath("$.code").value("INVALID_CREDENTIALS"));
 
@@ -577,7 +646,10 @@ class ApiIntegrationTest {
         .perform(
             post("/api/v1/auth/login")
                 .contentType(jsonContentType())
-                .content(toJson(new LoginRequest("reset-flow@example.com", "NewSecret99"))))
+                .content(
+                    toJson(
+                        new LoginRequest(
+                            TestEnterprise.CODE, "reset-flow@example.com", "NewSecret99"))))
         .andExpect(status().isOk());
 
     mockMvc
@@ -606,7 +678,8 @@ class ApiIntegrationTest {
     mockMvc.perform(
         post("/api/v1/auth/forgot-password")
             .contentType(jsonContentType())
-            .content(toJson(new ForgotPasswordRequest("reuse-reset@example.com"))));
+            .content(
+                toJson(new ForgotPasswordRequest(TestEnterprise.CODE, "reuse-reset@example.com"))));
     ArgumentCaptor<MimeMessage> mailCap = mimeMessageCaptor();
     verifyMailSentAndCapture(javaMailSender, mailCap);
     String resetToken = extractVerificationToken(requireMailText(capturedMail(mailCap)));
@@ -630,6 +703,7 @@ class ApiIntegrationTest {
   @Test
   void deleteUser_asUser_forbidden() throws Exception {
     User u = new User();
+    u.setEnterpriseId(TestEnterprise.ID);
     u.setEmail("plain@example.com");
     u.setPasswordHash(passwordEncoder.encode("Secret123"));
     u.setRole(Role.USER);
@@ -648,7 +722,7 @@ class ApiIntegrationTest {
     mockMvc.perform(
         post("/api/v1/auth/register")
             .contentType(jsonContentType())
-            .content(toJson(new RegisterRequest(email, "Secret123"))));
+            .content(toJson(new RegisterRequest(TestEnterprise.CODE, email, "Secret123"))));
     ArgumentCaptor<MimeMessage> cap = mimeMessageCaptor();
     verifyMailSentAndCapture(javaMailSender, cap);
     String token = extractVerificationToken(requireMailText(capturedMail(cap)));
@@ -666,7 +740,7 @@ class ApiIntegrationTest {
             .perform(
                 post("/api/v1/auth/login")
                     .contentType(jsonContentType())
-                    .content(toJson(new LoginRequest(email, password))))
+                    .content(toJson(new LoginRequest(TestEnterprise.CODE, email, password))))
             .andExpect(status().isOk())
             .andReturn();
     JsonNode n = objectMapper.readTree(responseBody(r));

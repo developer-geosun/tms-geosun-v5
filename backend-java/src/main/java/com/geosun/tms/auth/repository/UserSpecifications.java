@@ -15,12 +15,18 @@ public final class UserSpecifications {
   private UserSpecifications() {}
 
   public static Specification<User> adminFilter(
-      String email, String name, Role role, Boolean active, Boolean deleted) {
-    return Specification.where(emailContains(email))
+      String enterpriseId, String email, String name, Role role, Boolean active, Boolean deleted) {
+    return Specification.where(hasEnterprise(enterpriseId))
+        .and(emailContains(email))
         .and(nameContains(name))
         .and(hasAvailableRole(role))
         .and(hasActive(active))
         .and(hasDeleted(deleted));
+  }
+
+  /** Лише користувачі підприємства викликача. */
+  private static Specification<User> hasEnterprise(String enterpriseId) {
+    return (root, query, cb) -> cb.equal(root.get("enterpriseId"), enterpriseId);
   }
 
   private static Specification<User> emailContains(String email) {

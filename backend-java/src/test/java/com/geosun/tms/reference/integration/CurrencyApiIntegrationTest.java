@@ -15,10 +15,14 @@ import com.geosun.tms.auth.domain.user.Role;
 import com.geosun.tms.auth.domain.user.User;
 import com.geosun.tms.auth.dto.request.LoginRequest;
 import com.geosun.tms.auth.repository.UserRepository;
+import com.geosun.tms.enterprise.domain.PlatformOperator;
+import com.geosun.tms.enterprise.dto.PlatformLoginRequest;
+import com.geosun.tms.enterprise.repository.PlatformOperatorRepository;
 import com.geosun.tms.reference.client.NbuApiClient;
 import com.geosun.tms.reference.client.NbuRateRow;
 import com.geosun.tms.reference.domain.Currency;
 import com.geosun.tms.reference.repository.CurrencyRepository;
+import com.geosun.tms.support.TestEnterprise;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
@@ -47,6 +51,7 @@ class CurrencyApiIntegrationTest {
   @Autowired private UserRepository userRepository;
   @Autowired private PasswordEncoder passwordEncoder;
   @Autowired private CurrencyRepository currencyRepository;
+  @Autowired private PlatformOperatorRepository operatorRepository;
 
   @MockBean private NbuApiClient nbuApiClient;
 
@@ -60,7 +65,7 @@ class CurrencyApiIntegrationTest {
   }
 
   @Test
-  void adminCanListAndPatchCurrency() throws Exception {
+  void adminCanListCurrencies() throws Exception {
     User admin = createUser("curr-admin@example.com", Role.ADMIN);
     String access = login(admin.getEmail());
 
@@ -69,10 +74,69 @@ class CurrencyApiIntegrationTest {
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.length()").value(4))
         .andExpect(jsonPath("$[0].code").value("UAH"));
+  }
+
+  @Test
+  void adminCannotWriteCurrenciesOrSyncNbu() throws Exception {
+    User admin = createUser("curr-admin-write@example.com", Role.ADMIN);
+    String access = login(admin.getEmail());
+
+    int patchStatus =
+        mockMvc
+            .perform(
+                patch("/api/v1/admin/currencies/PLN")
+                    .header("Authorization", bearer(access))
+                    .contentType(jsonContentType())
+                    .content(toJson(Map.of("isActive", true))))
+            .andReturn()
+            .getResponse()
+            .getStatus();
+    int syncStatus =
+        mockMvc
+            .perform(
+                post("/api/v1/admin/currencies/nbu-rates/sync")
+                    .header("Authorization", bearer(access)))
+            .andReturn()
+            .getResponse()
+            .getStatus();
+
+    assertThat(patchStatus).isNotEqualTo(200);
+    assertThat(syncStatus).isNotEqualTo(200);
+    Currency pln = Objects.requireNonNull(currencyRepository.findById("PLN").orElseThrow());
+    assertThat(pln.isActive()).isFalse();
+  }
+
+  @Test
+  void employeeCannotUsePlatformCurrencyEndpoints() throws Exception {
+    User admin = createUser("curr-admin-platform@example.com", Role.ADMIN);
+    String access = login(admin.getEmail());
 
     mockMvc
         .perform(
-            patch("/api/v1/admin/currencies/PLN")
+            patch("/api/v1/platform/currencies/PLN")
+                .header("Authorization", bearer(access))
+                .contentType(jsonContentType())
+                .content(toJson(Map.of("isActive", true))))
+        .andExpect(status().isForbidden());
+    mockMvc
+        .perform(
+            post("/api/v1/platform/currencies/nbu-rates/sync")
+                .header("Authorization", bearer(access)))
+        .andExpect(status().isForbidden());
+  }
+
+  @Test
+  void operatorCanListAndPatchCurrency() throws Exception {
+    String access = operatorLogin();
+
+    mockMvc
+        .perform(get("/api/v1/platform/currencies").header("Authorization", bearer(access)))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.length()").value(4));
+
+    mockMvc
+        .perform(
+            patch("/api/v1/platform/currencies/PLN")
                 .header("Authorization", bearer(access))
                 .contentType(jsonContentType())
                 .content(toJson(Map.of("isActive", true))))
@@ -83,12 +147,11 @@ class CurrencyApiIntegrationTest {
 
   @Test
   void deactivationResetsDisplayOrder() throws Exception {
-    User admin = createUser("curr-order@example.com", Role.ADMIN);
-    String access = login(admin.getEmail());
+    String access = operatorLogin();
 
     mockMvc
         .perform(
-            patch("/api/v1/admin/currencies/USD")
+            patch("/api/v1/platform/currencies/USD")
                 .header("Authorization", bearer(access))
                 .contentType(jsonContentType())
                 .content(toJson(Map.of("isActive", false, "displayOrder", 10))))
@@ -111,7 +174,7 @@ class CurrencyApiIntegrationTest {
   }
 
   @Test
-  void adminCanSyncAndReadNbuRates() throws Exception {
+  void operatorCanSync_andAdminCanReadNbuRates() throws Exception {
     LocalDate rateDate = LocalDate.of(2026, 5, 22);
     when(nbuApiClient.fetchRatesForDate(any()))
         .thenReturn(
@@ -120,22 +183,44 @@ class CurrencyApiIntegrationTest {
                 new NbuRateRow("EUR", new BigDecimal("51.3027"), rateDate, null),
                 new NbuRateRow("PLN", new BigDecimal("12.0753"), rateDate, null)));
 
-    User admin = createUser("curr-nbu@example.com", Role.ADMIN);
-    String access = login(admin.getEmail());
-
+    String operatorAccess = operatorLogin();
     mockMvc
         .perform(
-            post("/api/v1/admin/currencies/nbu-rates/sync").header("Authorization", bearer(access)))
+            post("/api/v1/platform/currencies/nbu-rates/sync")
+                .header("Authorization", bearer(operatorAccess)))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.rateDate").value("2026-05-22"))
         .andExpect(jsonPath("$.syncedCount").value(3));
 
+    User admin = createUser("curr-nbu@example.com", Role.ADMIN);
+    String access = login(admin.getEmail());
     mockMvc
         .perform(get("/api/v1/admin/currencies/nbu-rates").header("Authorization", bearer(access)))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.rateDate").value("2026-05-22"))
         .andExpect(jsonPath("$.rates.length()").value(3))
         .andExpect(jsonPath("$.rates[?(@.currencyCode=='UAH')].ratePerUnit").value(1.0));
+  }
+
+  private String operatorLogin() throws Exception {
+    PlatformOperator operator = new PlatformOperator();
+    operator.setEmail("curr-operator@example.com");
+    operator.setPasswordHash(passwordEncoder.encode("Operator1"));
+    operator.setActive(true);
+    operatorRepository.save(operator);
+    var result =
+        mockMvc
+            .perform(
+                post("/api/v1/platform/auth/login")
+                    .contentType(jsonContentType())
+                    .content(
+                        toJson(new PlatformLoginRequest("curr-operator@example.com", "Operator1"))))
+            .andExpect(status().isOk())
+            .andReturn();
+    return objectMapper
+        .readTree(result.getResponse().getContentAsString())
+        .get("accessToken")
+        .asText();
   }
 
   private void saveCurrency(String code, int numericCode, boolean active, Integer order) {
@@ -154,6 +239,7 @@ class CurrencyApiIntegrationTest {
 
   private User createUser(String email, Role role) {
     User user = new User();
+    user.setEnterpriseId(TestEnterprise.ID);
     user.setEmail(email);
     user.setPasswordHash(passwordEncoder.encode("Secret123"));
     user.setRole(role);
@@ -168,7 +254,7 @@ class CurrencyApiIntegrationTest {
             .perform(
                 post("/api/v1/auth/login")
                     .contentType(jsonContentType())
-                    .content(toJson(new LoginRequest(email, "Secret123"))))
+                    .content(toJson(new LoginRequest(TestEnterprise.CODE, email, "Secret123"))))
             .andExpect(status().isOk())
             .andReturn();
     return objectMapper

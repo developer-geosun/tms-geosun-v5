@@ -3,6 +3,7 @@ package com.geosun.tms.freight.cost.service;
 import com.geosun.tms.auth.domain.user.User;
 import com.geosun.tms.auth.exception.ApiException;
 import com.geosun.tms.auth.repository.UserRepository;
+import com.geosun.tms.enterprise.port.CurrentEnterprise;
 import com.geosun.tms.freight.cost.domain.CountryTollRule;
 import com.geosun.tms.freight.cost.domain.TollTariffSet;
 import com.geosun.tms.freight.cost.domain.TollType;
@@ -28,24 +29,28 @@ public class TollTariffSetService {
   private final CountryTollRuleRepository countryTollRuleRepository;
   private final FreightNumericScenarioRepository scenarioRepository;
   private final UserRepository userRepository;
+  private final CurrentEnterprise currentEnterprise;
 
   public TollTariffSetService(
       TollTariffSetRepository tollTariffSetRepository,
       CountryTollRuleRepository countryTollRuleRepository,
       FreightNumericScenarioRepository scenarioRepository,
-      UserRepository userRepository) {
+      UserRepository userRepository,
+      CurrentEnterprise currentEnterprise) {
     this.tollTariffSetRepository = tollTariffSetRepository;
     this.countryTollRuleRepository = countryTollRuleRepository;
     this.scenarioRepository = scenarioRepository;
     this.userRepository = userRepository;
+    this.currentEnterprise = currentEnterprise;
   }
 
   @Transactional(readOnly = true)
   public List<TollTariffSetDto> list(boolean activeOnly) {
+    String enterpriseId = currentEnterprise.requireId();
     List<TollTariffSet> sets =
         activeOnly
-            ? tollTariffSetRepository.findByActiveTrueOrderByNameAsc()
-            : tollTariffSetRepository.findAllByOrderByNameAsc();
+            ? tollTariffSetRepository.findByEnterpriseIdAndActiveTrueOrderByNameAsc(enterpriseId)
+            : tollTariffSetRepository.findByEnterpriseIdOrderByNameAsc(enterpriseId);
     return sets.stream().map(this::toSetDto).toList();
   }
 
@@ -59,6 +64,7 @@ public class TollTariffSetService {
     User user = loadUser(userId);
     validateUniqueActiveName(request.name(), null);
     TollTariffSet set = new TollTariffSet();
+    set.setEnterpriseId(currentEnterprise.requireId());
     set.setName(request.name().trim());
     set.setDescription(request.description());
     set.setActive(request.isActive() == null || request.isActive());
@@ -159,7 +165,7 @@ public class TollTariffSetService {
 
   public TollTariffSet loadSet(String id) {
     return tollTariffSetRepository
-        .findById(Objects.requireNonNull(id, "setId"))
+        .findByIdAndEnterpriseId(Objects.requireNonNull(id, "setId"), currentEnterprise.requireId())
         .orElseThrow(() -> ApiException.notFound("Toll tariff set not found"));
   }
 
@@ -184,11 +190,14 @@ public class TollTariffSetService {
     if (!StringUtils.hasText(name)) {
       return;
     }
+    String enterpriseId = currentEnterprise.requireId();
     boolean exists =
         excludeId == null
-            ? tollTariffSetRepository.findByNameIgnoreCaseAndActiveTrue(name.trim()).isPresent()
-            : tollTariffSetRepository.existsByNameIgnoreCaseAndActiveTrueAndIdNot(
-                name.trim(), excludeId);
+            ? tollTariffSetRepository
+                .findByEnterpriseIdAndNameIgnoreCaseAndActiveTrue(enterpriseId, name.trim())
+                .isPresent()
+            : tollTariffSetRepository.existsByEnterpriseIdAndNameIgnoreCaseAndActiveTrueAndIdNot(
+                enterpriseId, name.trim(), excludeId);
     if (exists) {
       throw ApiException.conflict(
           "TOLL_TARIFF_SET_NAME_CONFLICT", "Active toll tariff set name already exists");

@@ -11,6 +11,7 @@ import com.geosun.tms.auth.domain.user.User;
 import com.geosun.tms.auth.dto.request.LoginRequest;
 import com.geosun.tms.auth.dto.request.VerifySuperAdminPasswordRequest;
 import com.geosun.tms.auth.repository.UserRepository;
+import com.geosun.tms.support.TestEnterprise;
 import java.util.Objects;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -100,6 +101,7 @@ class SuperAdminPasswordIntegrationTest {
 
   private User saveUser(String email, String password, Role role) {
     User u = new User();
+    u.setEnterpriseId(TestEnterprise.ID);
     u.setEmail(email);
     u.setPasswordHash(passwordEncoder.encode(password));
     u.setRole(role);
@@ -114,7 +116,7 @@ class SuperAdminPasswordIntegrationTest {
             .perform(
                 post("/api/v1/auth/login")
                     .contentType(jsonContentType())
-                    .content(toJson(new LoginRequest(email, password))))
+                    .content(toJson(new LoginRequest(TestEnterprise.CODE, email, password))))
             .andExpect(status().isOk())
             .andReturn();
     JsonNode n = objectMapper.readTree(responseBody(r));

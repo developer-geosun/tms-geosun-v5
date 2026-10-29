@@ -122,8 +122,17 @@ public class UserProfileService {
 
   @Transactional
   public UserProfileDto putAdmin(
-      @NonNull String targetUserId, @NonNull UpdateUserProfileRequest request) {
-    requireExistingUser(targetUserId, true);
+      @NonNull String enterpriseId,
+      @NonNull String targetUserId,
+      @NonNull UpdateUserProfileRequest request) {
+    User user = requireExistingUser(targetUserId, false);
+    // Чужий користувач виглядає як неіснуючий
+    if (!enterpriseId.equals(user.getEnterpriseId())) {
+      throw ApiException.notFound("User not found");
+    }
+    if (user.isDeleted()) {
+      throw ApiException.conflict("USER_DELETED", "User is deleted");
+    }
     return upsert(targetUserId, request);
   }
 

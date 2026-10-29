@@ -23,10 +23,12 @@ import { TranslateService } from '@ngx-translate/core';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import { MatExpansionModule } from '@angular/material/expansion';
+import { ActivatedRoute } from '@angular/router';
 import {
   CurrenciesApiService,
   CurrencyContractDto,
-  NbuRatesSnapshotContractDto
+  NbuRatesSnapshotContractDto,
+  ReferenceApiScope
 } from '../../core/api';
 import { LayoutService } from '../../core/layout';
 import { LanguageService } from '../../core/services/language.service';
@@ -61,7 +63,12 @@ export class AdminCurrenciesComponent implements AfterViewInit {
   private static readonly HANDSET_DEFAULT_PAGE_SIZE = 5;
 
   private readonly currenciesApi = inject(CurrenciesApiService);
+  private readonly route = inject(ActivatedRoute);
   private readonly layout = inject(LayoutService);
+  /** Запис і синхронізація НБУ лише в кабінеті оператора платформи. */
+  private readonly scope: ReferenceApiScope =
+    this.route.snapshot.data['referenceScope'] === 'platform' ? 'platform' : 'admin';
+  readonly canManage = this.scope === 'platform';
   private readonly formBuilder = inject(FormBuilder);
   private readonly snackBar = inject(MatSnackBar);
   private readonly translate = inject(TranslateService);
@@ -129,7 +136,7 @@ export class AdminCurrenciesComponent implements AfterViewInit {
     this.isLoading.set(true);
     this.loadError.set('');
     try {
-      const currencies = await this.currenciesApi.list(false);
+      const currencies = await this.currenciesApi.list(false, this.scope);
       this.currencies.set(currencies);
       this.refreshTableData();
     } catch {
@@ -149,7 +156,7 @@ export class AdminCurrenciesComponent implements AfterViewInit {
     this.isLoadingNbuSnapshot.set(true);
     this.nbuSnapshot.set(null);
     try {
-      const snapshot = await this.currenciesApi.getNbuRates(rateDate);
+      const snapshot = await this.currenciesApi.getNbuRates(rateDate, this.scope);
       this.nbuSnapshot.set(snapshot);
       this.nbuSnapshotSource.data = snapshot.rates;
     } catch {

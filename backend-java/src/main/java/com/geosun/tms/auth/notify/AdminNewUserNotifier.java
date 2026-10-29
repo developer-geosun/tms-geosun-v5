@@ -90,7 +90,15 @@ public class AdminNewUserNotifier {
       return;
     }
 
-    List<User> admins = userRepository.findActiveWithAvailableRole(Role.ADMIN);
+    // Отримувачі — лише ADMIN того самого підприємства, що й новий користувач
+    String enterpriseId =
+        userRepository.findById(userId).map(user -> user.getEnterpriseId()).orElse(null);
+    if (enterpriseId == null) {
+      log.info("admin_notify_skipped_no_enterprise newUserId={}", userId);
+      return;
+    }
+    List<User> admins =
+        userRepository.findActiveWithAvailableRoleAndEnterpriseId(Role.ADMIN, enterpriseId);
     if (admins.isEmpty()) {
       log.info("admin_notify_queued newUserId={} recipients=0", userId);
       return;

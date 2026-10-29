@@ -18,6 +18,7 @@ import com.geosun.tms.chatbot.domain.BotMessageLog;
 import com.geosun.tms.chatbot.domain.ChatbotChannel;
 import com.geosun.tms.chatbot.repository.BotIdentityRepository;
 import com.geosun.tms.chatbot.repository.BotMessageLogRepository;
+import com.geosun.tms.support.TestEnterprise;
 import java.time.Instant;
 import java.util.List;
 import java.util.Objects;
@@ -106,6 +107,7 @@ class ChatbotOutboundNotifierIntegrationTest {
 
   private User saveAdmin() {
     User user = new User();
+    user.setEnterpriseId(TestEnterprise.ID);
     user.setId(UUID.randomUUID().toString());
     user.setEmail("admin-outbound@" + UUID.randomUUID() + ".example.com");
     user.setPasswordHash(passwordEncoder.encode("Admin123!"));

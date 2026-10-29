@@ -51,7 +51,7 @@ public class AdminUserService {
   }
 
   @Transactional(readOnly = true)
-  public PageResponse<UserAdminDto> list(AdminUserListQuery query) {
+  public PageResponse<UserAdminDto> list(@NonNull String enterpriseId, AdminUserListQuery query) {
     int page = Math.max(0, query.page());
     int size = Math.min(100, Math.max(1, query.size()));
     Boolean deleted = query.deleted() == null ? Boolean.FALSE : query.deleted();
@@ -59,7 +59,7 @@ public class AdminUserService {
     Page<User> result =
         userRepository.findAll(
             UserSpecifications.adminFilter(
-                query.email(), query.name(), query.role(), query.active(), deleted),
+                enterpriseId, query.email(), query.name(), query.role(), query.active(), deleted),
             PageRequest.of(page, size, sort));
     List<String> ids =
         result.getContent().stream().map(u -> Objects.requireNonNull(u.getId())).toList();
@@ -81,8 +81,8 @@ public class AdminUserService {
   }
 
   @Transactional(readOnly = true)
-  public UserAdminDto getById(@NonNull String rawId) {
-    User user = requireUser(rawId);
+  public UserAdminDto getById(@NonNull String enterpriseId, @NonNull String rawId) {
+    User user = requireUser(enterpriseId, rawId);
     return UserDtoMapper.toAdminDto(
         user, userProfileService.getByUserId(Objects.requireNonNull(user.getId())));
   }
@@ -93,6 +93,7 @@ public class AdminUserService {
    */
   @Transactional
   public UserAdminDto updateRoles(
+      @NonNull String enterpriseId,
       @NonNull String actorUserId,
       @NonNull String rawId,
       @NonNull Set<Role> roles,
@@ -100,7 +101,7 @@ public class AdminUserService {
     if (roles.isEmpty()) {
       throw ApiException.badRequest("ROLES_REQUIRED", "At least one role is required");
     }
-    User user = requireUser(rawId);
+    User user = requireUser(enterpriseId, rawId);
     assertNotSelf(actorUserId, Objects.requireNonNull(user.getId()));
     assertNotDeleted(user);
 
@@ -112,7 +113,7 @@ public class AdminUserService {
 
     boolean removingAdmin = previous.contains(Role.ADMIN) && !next.contains(Role.ADMIN);
     if (removingAdmin) {
-      assertNotLastActiveAdmin(user);
+      assertNotLastActiveAdmin(enterpriseId, user);
       // Зняття ролі ADMIN — лише після коректного пароля суперадміна
       superAdminPasswordService.requireValid(superAdminPassword);
     }
@@ -125,25 +126,33 @@ public class AdminUserService {
   /** Сумісність: singleton-набір через {@link #updateRoles}. */
   @Transactional
   public UserAdminDto updateRole(
+      @NonNull String enterpriseId,
       @NonNull String actorUserId,
       @NonNull String rawId,
       @NonNull Role newRole,
       String superAdminPassword) {
     return updateRoles(
-        actorUserId, rawId, Objects.requireNonNull(EnumSet.of(newRole)), superAdminPassword);
+        enterpriseId,
+        actorUserId,
+        rawId,
+        Objects.requireNonNull(EnumSet.of(newRole)),
+        superAdminPassword);
   }
 
   @Transactional
   public UserAdminDto setActive(
-      @NonNull String actorUserId, @NonNull String rawId, boolean active) {
-    User user = requireUser(rawId);
+      @NonNull String enterpriseId,
+      @NonNull String actorUserId,
+      @NonNull String rawId,
+      boolean active) {
+    User user = requireUser(enterpriseId, rawId);
     assertNotSelf(actorUserId, user.getId());
     assertNotDeleted(user);
     if (user.isActive() == active) {
       return toDto(user);
     }
     if (!active && user.hasAvailableRole(Role.ADMIN)) {
-      assertNotLastActiveAdmin(user);
+      assertNotLastActiveAdmin(enterpriseId, user);
     }
     user.setActive(active);
     if (!active) {
@@ -153,14 +162,15 @@ public class AdminUserService {
   }
 
   @Transactional
-  public void softDelete(@NonNull String actorUserId, @NonNull String rawId) {
-    User user = requireUser(rawId);
+  public void softDelete(
+      @NonNull String enterpriseId, @NonNull String actorUserId, @NonNull String rawId) {
+    User user = requireUser(enterpriseId, rawId);
     if (user.isDeleted()) {
       return;
     }
     assertNotSelf(actorUserId, user.getId());
     if (user.hasAvailableRole(Role.ADMIN) && user.isActive()) {
-      assertNotLastActiveAdmin(user);
+      assertNotLastActiveAdmin(enterpriseId, user);
     }
     user.setDeleted(true);
     user.setDeletedAt(Instant.now());
@@ -171,16 +181,17 @@ public class AdminUserService {
 
   /**
    * Відновлення після soft-delete: знімає deleted, знову активує акаунт.
-   * Ідемпотентно, якщо вже не видалений. Конфлікт email — якщо є інший активний з тим самим email.
+   * Ідемпотентно, якщо вже не видалений. Конфлікт email — якщо в тому самому підприємстві є інший активний з тим самим email.
    */
   @Transactional
-  public UserAdminDto restore(@NonNull String actorUserId, @NonNull String rawId) {
-    User user = requireUser(rawId);
+  public UserAdminDto restore(
+      @NonNull String enterpriseId, @NonNull String actorUserId, @NonNull String rawId) {
+    User user = requireUser(enterpriseId, rawId);
     assertNotSelf(actorUserId, user.getId());
     if (!user.isDeleted()) {
       return toDto(user);
     }
-    if (userRepository.existsByEmailAndDeletedFalse(user.getEmail())) {
+    if (userRepository.existsByEnterpriseIdAndEmailAndDeletedFalse(enterpriseId, user.getEmail())) {
       throw ApiException.conflict(
           "EMAIL_ALREADY_EXISTS", "Cannot restore: another active user already uses this email");
     }
@@ -190,15 +201,19 @@ public class AdminUserService {
     return toDto(userRepository.save(Objects.requireNonNull(user)));
   }
 
-  private User requireUser(@NonNull String rawId) {
+  /** Користувач лише з підприємства викликача; чужий id дає 404, як неіснуючий. */
+  private User requireUser(@NonNull String enterpriseId, @NonNull String rawId) {
     try {
       UUID.fromString(rawId);
     } catch (IllegalArgumentException ex) {
       throw ApiException.badRequest("VALIDATION_ERROR", "Invalid user id");
     }
-    return userRepository
-        .findById(rawId)
-        .orElseThrow(() -> ApiException.notFound("User not found"));
+    User user =
+        userRepository.findById(rawId).orElseThrow(() -> ApiException.notFound("User not found"));
+    if (!enterpriseId.equals(user.getEnterpriseId())) {
+      throw ApiException.notFound("User not found");
+    }
+    return user;
   }
 
   private void assertNotSelf(String actorUserId, String targetUserId) {
@@ -214,8 +229,9 @@ public class AdminUserService {
     }
   }
 
-  private void assertNotLastActiveAdmin(User target) {
-    long activeAdmins = userRepository.countActiveWithAvailableRole(Role.ADMIN);
+  private void assertNotLastActiveAdmin(@NonNull String enterpriseId, User target) {
+    long activeAdmins =
+        userRepository.countActiveWithAvailableRoleAndEnterpriseId(Role.ADMIN, enterpriseId);
     if (activeAdmins <= 1
         && target.hasAvailableRole(Role.ADMIN)
         && target.isActive()

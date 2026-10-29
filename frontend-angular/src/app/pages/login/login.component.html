@@ -5,6 +5,22 @@
 
   <form [formGroup]="form" (ngSubmit)="submit()" class="auth-form login-form">
     <mat-form-field appearance="outline">
+      <mat-label>{{ 'pages.login.enterpriseCode' | translate }}</mat-label>
+      <input
+        matInput
+        formControlName="enterpriseCode"
+        name="enterpriseCode"
+        autocomplete="organization"
+        autocapitalize="none"
+        spellcheck="false"
+        [attr.maxlength]="enterpriseCodeMaxLength"
+      />
+      @if (form.controls.enterpriseCode.touched && form.controls.enterpriseCode.hasError('required')) {
+        <mat-error>{{ 'pages.login.enterpriseCodeRequired' | translate }}</mat-error>
+      }
+    </mat-form-field>
+
+    <mat-form-field appearance="outline">
       <mat-label>{{ 'pages.login.email' | translate }}</mat-label>
       <input matInput formControlName="email" autocomplete="email" />
     </mat-form-field>
@@ -61,6 +77,40 @@
       <p class="banner banner--error">
         <mat-icon fontIcon="error_outline" aria-hidden="true"></mat-icon>
         <span>{{ 'pages.login.errorEmailNotVerified' | translate }}</span>
+      </p>
+      @if (resendState() === 'success') {
+        <p class="banner banner--success">
+          <mat-icon fontIcon="check_circle_outline" aria-hidden="true"></mat-icon>
+          <span>{{ 'pages.login.resendVerificationSuccess' | translate }}</span>
+        </p>
+      } @else {
+        @if (resendState() === 'error') {
+          <p class="banner banner--error">
+            <mat-icon fontIcon="error_outline" aria-hidden="true"></mat-icon>
+            <span>{{ 'pages.login.resendVerificationError' | translate }}</span>
+          </p>
+        }
+        <button
+          mat-stroked-button
+          type="button"
+          class="resend-button"
+          [disabled]="resendState() === 'loading'"
+          (click)="resendVerification()">
+          @if (resendState() === 'loading') {
+            <span class="loading-content">
+              <mat-spinner diameter="18"></mat-spinner>
+              <span>{{ 'pages.login.resendVerificationLoading' | translate }}</span>
+            </span>
+          } @else {
+            {{ 'pages.login.resendVerification' | translate }}
+          }
+        </button>
+      }
+    }
+    @if (errorCode() === 'enterprise_suspended') {
+      <p class="banner banner--error">
+        <mat-icon fontIcon="error_outline" aria-hidden="true"></mat-icon>
+        <span>{{ 'pages.login.errorEnterpriseSuspended' | translate }}</span>
       </p>
     }
     @if (errorCode() === 'generic') {

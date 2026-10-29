@@ -5,9 +5,12 @@ import com.geosun.tms.auth.domain.EmailNormalizer;
 import com.geosun.tms.auth.domain.user.Role;
 import com.geosun.tms.auth.domain.user.User;
 import com.geosun.tms.auth.repository.UserRepository;
+import com.geosun.tms.enterprise.domain.Enterprise;
+import com.geosun.tms.enterprise.repository.EnterpriseRepository;
 import java.time.Instant;
 import java.util.EnumSet;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.regex.Pattern;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -31,19 +34,23 @@ public class DefaultAdminBootstrapService {
   private final UserRepository userRepository;
   private final PasswordEncoder passwordEncoder;
   private final DefaultAdminBootstrapProperties properties;
+  private final EnterpriseRepository enterpriseRepository;
 
   public DefaultAdminBootstrapService(
       UserRepository userRepository,
       PasswordEncoder passwordEncoder,
-      DefaultAdminBootstrapProperties properties) {
+      DefaultAdminBootstrapProperties properties,
+      EnterpriseRepository enterpriseRepository) {
     this.userRepository = userRepository;
     this.passwordEncoder = passwordEncoder;
     this.properties = properties;
+    this.enterpriseRepository = enterpriseRepository;
   }
 
   @Transactional
   public void ensureDefaultAdmin() {
-    if (userRepository.countNonDeletedWithAvailableRole(Role.ADMIN) > 0) {
+    Optional<Enterprise> firstEnterprise = enterpriseRepository.findFirstByOrderByCreatedAtAsc();
+    if (adminAlreadyPresent(firstEnterprise)) {
       log.debug("Default ADMIN bootstrap skipped: ADMIN already present");
       return;
     }
@@ -77,12 +84,15 @@ public class DefaultAdminBootstrapService {
       return;
     }
 
-    if (userRepository.countNonDeletedWithAvailableRole(Role.ADMIN) > 0) {
+    if (adminAlreadyPresent(firstEnterprise)) {
       return;
     }
 
     User user = new User();
     user.setEmail(email);
+    if (firstEnterprise.isPresent()) {
+      user.setEnterpriseId(Objects.requireNonNull(firstEnterprise.get().getId()));
+    }
     user.setPasswordHash(passwordEncoder.encode(password));
     user.setRole(Role.ADMIN);
     user.replaceAvailableRoles(Objects.requireNonNull(EnumSet.of(Role.ADMIN)));
@@ -92,6 +102,15 @@ public class DefaultAdminBootstrapService {
     userRepository.save(user);
 
     log.info("Default ADMIN account created for {}", maskEmail(email));
+  }
+
+  private boolean adminAlreadyPresent(Optional<Enterprise> firstEnterprise) {
+    if (firstEnterprise.isEmpty()) {
+      return userRepository.countNonDeletedWithAvailableRole(Role.ADMIN) > 0;
+    }
+    String enterpriseId = Objects.requireNonNull(firstEnterprise.get().getId());
+    return userRepository.countNonDeletedWithAvailableRoleAndEnterpriseId(Role.ADMIN, enterpriseId)
+        > 0;
   }
 
   @NonNull

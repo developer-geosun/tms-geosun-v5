@@ -38,6 +38,7 @@ describe('RegisterComponent', () => {
 
   it('does not call register when passwords do not match', () => {
     component.form.setValue({
+      enterpriseCode: 'acme',
       email: 'user@example.com',
       password: 'password123',
       confirmPassword: 'password124'
@@ -52,6 +53,7 @@ describe('RegisterComponent', () => {
 
   it('does not call register when password has no digits or letters', () => {
     component.form.setValue({
+      enterpriseCode: 'acme',
       email: 'user@example.com',
       password: 'abcdefgh',
       confirmPassword: 'abcdefgh'
@@ -66,6 +68,7 @@ describe('RegisterComponent', () => {
   it('shows conflict error on 409', () => {
     authServiceSpy.register.and.returnValue(throwError(() => ({ status: 409 })));
     component.form.setValue({
+      enterpriseCode: 'acme',
       email: 'user@example.com',
       password: 'password123',
       confirmPassword: 'password123'
@@ -80,6 +83,7 @@ describe('RegisterComponent', () => {
   it('shows rate limit error on 429', () => {
     authServiceSpy.register.and.returnValue(throwError(() => ({ status: 429 })));
     component.form.setValue({
+      enterpriseCode: 'acme',
       email: 'user@example.com',
       password: 'password123',
       confirmPassword: 'password123'
@@ -100,6 +104,7 @@ describe('RegisterComponent', () => {
       })
     );
     component.form.setValue({
+      enterpriseCode: 'acme',
       email: 'user@example.com',
       password: 'password123',
       confirmPassword: 'password123'
@@ -108,6 +113,7 @@ describe('RegisterComponent', () => {
     component.submit();
 
     expect(authServiceSpy.register).toHaveBeenCalledWith({
+      enterpriseCode: 'acme',
       email: 'user@example.com',
       password: 'password123'
     });

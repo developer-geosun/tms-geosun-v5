@@ -1,7 +1,7 @@
 # Запуск проекта
 
 **Дата создания:** 15 сентября 2026, 00:00 (UTC+3)  
-**Дата изменения:** 28 октября 2026, 21:36 (UTC+3)
+**Дата изменения:** 29 октября 2026, 11:40 (UTC+3)
 
 Этот файл описывает основные варианты запуска `tms-geosun-v4`.
 
@@ -194,7 +194,8 @@ mvn spring-boot:run
 
 - MySQL доступен (контейнер v4 публикует хост-порт `3308`, v1 занимает `3307` → см. `MYSQL_HOST_PORT` и `DB_URL` в `backend-java/.env.example` / `application.yml`);
 - переменные из `backend-java/.env.example` и при необходимости корневого `.env` настроены;
-- для **первого** ADMIN на пустой БД (опционально): `ADMIN_EMAIL` и `ADMIN_PASSWORD` в `.env` — при старте backend создаст учётку, если ещё нет пользователя с ролью ADMIN в available roles (см. [`docs/specs/default-admin-bootstrap.ru.en.md`](docs/specs/default-admin-bootstrap.ru.en.md)); не путать с `SUPER_ADMIN_PASSWORD` (step-up);
+- для **первого** ADMIN на пустой БД (опционально): `ADMIN_EMAIL` и `ADMIN_PASSWORD` в `.env` — при старте backend создаст учётку первого предприятия, если у него ещё нет ADMIN (см. [`docs/specs/default-admin-bootstrap.ru.en.md`](docs/specs/default-admin-bootstrap.ru.en.md)); не путать с `SUPER_ADMIN_PASSWORD` (step-up);
+- для рабочего старта после границы предприятий обязательны `DEFAULT_ENTERPRISE_CODE`, `DEFAULT_ENTERPRISE_NAME`, `PLATFORM_OPERATOR_EMAIL`, `PLATFORM_OPERATOR_PASSWORD`. Пустые значения или совпадение email оператора с `ADMIN_EMAIL` / уже существующим пользователем останавливают старт. Профиль `test` этот шаг не выполняет;
 - для файлов: `APP_STORAGE_TYPE=local`, каталог `./data/uploads` (относительно cwd backend-java).
 
 ### 2) Frontend

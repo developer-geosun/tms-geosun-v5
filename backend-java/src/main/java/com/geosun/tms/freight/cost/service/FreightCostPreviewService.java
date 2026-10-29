@@ -6,6 +6,7 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.geosun.tms.auth.domain.user.User;
 import com.geosun.tms.auth.exception.ApiException;
 import com.geosun.tms.auth.repository.UserRepository;
+import com.geosun.tms.enterprise.port.CurrentEnterprise;
 import com.geosun.tms.freight.cost.domain.DriverSalaryBasis;
 import com.geosun.tms.freight.cost.domain.FreightCostCalculation;
 import com.geosun.tms.freight.cost.domain.FreightNumericScenario;
@@ -48,6 +49,7 @@ public class FreightCostPreviewService {
   private final UserRepository userRepository;
   private final FreightQuoteRepository freightQuoteRepository;
   private final ObjectMapper objectMapper;
+  private final CurrentEnterprise currentEnterprise;
 
   public FreightCostPreviewService(
       RouteRequestRepository routeRequestRepository,
@@ -62,7 +64,9 @@ public class FreightCostPreviewService {
       CountryTollRuleRepository countryTollRuleRepository,
       UserRepository userRepository,
       FreightQuoteRepository freightQuoteRepository,
-      ObjectMapper objectMapper) {
+      ObjectMapper objectMapper,
+      CurrentEnterprise currentEnterprise) {
+    this.currentEnterprise = currentEnterprise;
     this.routeRequestRepository = routeRequestRepository;
     this.scenarioService = scenarioService;
     this.calculationRepository = calculationRepository;
@@ -119,6 +123,7 @@ public class FreightCostPreviewService {
 
     User user = loadUser(userId);
     FreightCostCalculation entity = new FreightCostCalculation();
+    entity.setEnterpriseId(currentEnterprise.requireId());
     entity.setRouteRequest(routeRequest);
     entity.setScenario(scenario);
     entity.setCalculationDate(request.calculationDate());
@@ -165,7 +170,10 @@ public class FreightCostPreviewService {
   @Transactional(readOnly = true)
   public List<FreightCostCalculationDto> listForRequest(Long requestId) {
     loadRouteRequest(requestId);
-    return calculationRepository.findByRouteRequest_IdOrderByCreatedAtDesc(requestId).stream()
+    return calculationRepository
+        .findByEnterpriseIdAndRouteRequest_IdOrderByCreatedAtDesc(
+            currentEnterprise.requireId(), requestId)
+        .stream()
         .map(this::toDto)
         .toList();
   }
@@ -175,7 +183,8 @@ public class FreightCostPreviewService {
     loadRouteRequest(requestId);
     FreightCostCalculation calculation =
         calculationRepository
-            .findByIdAndRouteRequest_Id(calculationId, requestId)
+            .findByIdAndEnterpriseIdAndRouteRequest_Id(
+                calculationId, currentEnterprise.requireId(), requestId)
             .orElseThrow(() -> ApiException.notFound("Cost calculation not found"));
     return toDto(calculation);
   }
@@ -185,7 +194,8 @@ public class FreightCostPreviewService {
     loadRouteRequest(requestId);
     FreightCostCalculation calculation =
         calculationRepository
-            .findByIdAndRouteRequest_Id(calculationId, requestId)
+            .findByIdAndEnterpriseIdAndRouteRequest_Id(
+                calculationId, currentEnterprise.requireId(), requestId)
             .orElseThrow(() -> ApiException.notFound("Cost calculation not found"));
     // Як ON DELETE SET NULL у MySQL: відв'язуємо quotes перед delete (H2/JPA-сесія).
     for (FreightQuote quote :
@@ -311,7 +321,8 @@ public class FreightCostPreviewService {
 
   private RouteRequest loadRouteRequest(Long requestId) {
     return routeRequestRepository
-        .findById(Objects.requireNonNull(requestId, "requestId"))
+        .findByIdAndEnterpriseId(
+            Objects.requireNonNull(requestId, "requestId"), currentEnterprise.requireId())
         .orElseThrow(() -> ApiException.notFound("Route request not found"));
   }
 

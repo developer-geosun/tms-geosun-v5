@@ -16,6 +16,7 @@ import com.geosun.tms.auth.dto.request.RefreshRequest;
 import com.geosun.tms.auth.dto.request.RegisterRequest;
 import com.geosun.tms.auth.dto.request.VerifyEmailRequest;
 import com.geosun.tms.auth.ratelimit.RateLimitService;
+import com.geosun.tms.support.TestEnterprise;
 import jakarta.mail.Multipart;
 import jakarta.mail.internet.MimeMessage;
 import jakarta.mail.internet.MimeMultipart;
@@ -101,7 +102,7 @@ class RefreshGracePeriodIntegrationTest {
     mockMvc.perform(
         post("/api/v1/auth/register")
             .contentType(jsonContentType())
-            .content(toJson(new RegisterRequest(email, "Secret123"))));
+            .content(toJson(new RegisterRequest(TestEnterprise.CODE, email, "Secret123"))));
     ArgumentCaptor<MimeMessage> cap = mimeMessageCaptor_();
     verifyMailSentAndCapture_(javaMailSender, cap);
     String token = extractVerificationToken(requireMailText(capturedMail_(cap)));
@@ -119,7 +120,7 @@ class RefreshGracePeriodIntegrationTest {
             .perform(
                 post("/api/v1/auth/login")
                     .contentType(jsonContentType())
-                    .content(toJson(new LoginRequest(email, password))))
+                    .content(toJson(new LoginRequest(TestEnterprise.CODE, email, password))))
             .andExpect(status().isOk())
             .andReturn();
     JsonNode n = objectMapper.readTree(responseBody(r));

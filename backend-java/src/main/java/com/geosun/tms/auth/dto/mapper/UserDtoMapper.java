@@ -17,7 +17,8 @@ public final class UserDtoMapper {
 
   private UserDtoMapper() {}
 
-  public static UserPublicDto toPublicDto(User user, UserProfileDto profile) {
+  public static UserPublicDto toPublicDto(
+      User user, UserProfileDto profile, String enterpriseCode) {
     if (user == null) {
       return null;
     }
@@ -28,6 +29,7 @@ public final class UserDtoMapper {
         user.getEmail(),
         user.getRole().name(),
         available,
+        enterpriseCode,
         UserProfileService.displayName(user.getEmail(), safeProfile),
         safeProfile);
   }

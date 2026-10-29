@@ -2,6 +2,7 @@ package com.geosun.tms.reference.repository;
 
 import com.geosun.tms.reference.domain.DocumentTypeReference;
 import java.util.List;
+import java.util.Optional;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -9,22 +10,32 @@ import org.springframework.data.repository.query.Param;
 public interface DocumentTypeReferenceRepository
     extends JpaRepository<DocumentTypeReference, String> {
 
-  List<DocumentTypeReference> findByDeletedFalseOrderByCountryCodeAscNameUkAsc();
+  Optional<DocumentTypeReference> findByIdAndEnterpriseId(String id, String enterpriseId);
 
-  List<DocumentTypeReference> findByDeletedTrueOrderByCountryCodeAscNameUkAsc();
+  /** Не видалені типи підприємства — джерело копії для нового підприємства. */
+  List<DocumentTypeReference> findByEnterpriseIdAndDeletedFalseOrderByCountryCodeAscNameUkAsc(
+      String enterpriseId);
 
-  List<DocumentTypeReference> findAllByOrderByCountryCodeAscNameUkAsc();
+  /** Канонічні типи (id c2000000-…), якщо в джерельному підприємстві каталог порожній. */
+  @Query(
+      """
+      SELECT d FROM DocumentTypeReference d
+      WHERE d.deleted = false AND d.id LIKE 'c2000000-%'
+      ORDER BY d.countryCode ASC, d.nameUk ASC
+      """)
+  List<DocumentTypeReference> findCanonicalActive();
 
-  boolean existsByCountryCodeIgnoreCaseAndNameUkIgnoreCaseAndDeletedFalse(
-      String countryCode, String nameUk);
+  boolean existsByEnterpriseIdAndCountryCodeIgnoreCaseAndNameUkIgnoreCaseAndDeletedFalse(
+      String enterpriseId, String countryCode, String nameUk);
 
-  boolean existsByCountryCodeIgnoreCaseAndNameUkIgnoreCaseAndDeletedFalseAndIdNot(
-      String countryCode, String nameUk, String id);
+  boolean existsByEnterpriseIdAndCountryCodeIgnoreCaseAndNameUkIgnoreCaseAndDeletedFalseAndIdNot(
+      String enterpriseId, String countryCode, String nameUk, String id);
 
   @Query(
       """
       SELECT d FROM DocumentTypeReference d
-      WHERE d.deleted = false
+      WHERE d.enterpriseId = :enterpriseId
+        AND d.deleted = false
         AND (:country IS NULL OR :country = '' OR UPPER(d.countryCode) = UPPER(:country))
         AND (
           :search IS NULL OR :search = '' OR
@@ -35,12 +46,15 @@ public interface DocumentTypeReferenceRepository
       ORDER BY d.countryCode ASC, d.nameUk ASC
       """)
   List<DocumentTypeReference> searchActive(
-      @Param("search") String search, @Param("country") String country);
+      @Param("enterpriseId") String enterpriseId,
+      @Param("search") String search,
+      @Param("country") String country);
 
   @Query(
       """
       SELECT d FROM DocumentTypeReference d
-      WHERE d.deleted = true
+      WHERE d.enterpriseId = :enterpriseId
+        AND d.deleted = true
         AND (:country IS NULL OR :country = '' OR UPPER(d.countryCode) = UPPER(:country))
         AND (
           :search IS NULL OR :search = '' OR
@@ -51,12 +65,15 @@ public interface DocumentTypeReferenceRepository
       ORDER BY d.countryCode ASC, d.nameUk ASC
       """)
   List<DocumentTypeReference> searchDeleted(
-      @Param("search") String search, @Param("country") String country);
+      @Param("enterpriseId") String enterpriseId,
+      @Param("search") String search,
+      @Param("country") String country);
 
   @Query(
       """
       SELECT d FROM DocumentTypeReference d
-      WHERE (:country IS NULL OR :country = '' OR UPPER(d.countryCode) = UPPER(:country))
+      WHERE d.enterpriseId = :enterpriseId
+        AND (:country IS NULL OR :country = '' OR UPPER(d.countryCode) = UPPER(:country))
         AND (
           :search IS NULL OR :search = '' OR
           LOWER(d.nameUk) LIKE CONCAT('%', LOWER(:search), '%') OR
@@ -66,5 +83,7 @@ public interface DocumentTypeReferenceRepository
       ORDER BY d.countryCode ASC, d.nameUk ASC
       """)
   List<DocumentTypeReference> searchAll(
-      @Param("search") String search, @Param("country") String country);
+      @Param("enterpriseId") String enterpriseId,
+      @Param("search") String search,
+      @Param("country") String country);
 }

@@ -15,6 +15,13 @@
       <div class="sidenav-wordmark">
         <span class="name">GeoSun</span>
         <span class="product">{{ 'shell.brandProduct' | translate }}</span>
+        @if (enterpriseCode(); as code) {
+          <span
+            class="enterprise-code"
+            [attr.title]="('shell.enterpriseCode' | translate) + ': ' + code">
+            {{ code }}
+          </span>
+        }
       </div>
       @if (!isShellNav()) {
         <button
@@ -170,6 +177,9 @@
           <div class="user-menu-header">
             <div class="email">{{ userEmail() }}</div>
             <div class="role">{{ roleLabelKey(currentRole()) | translate }}</div>
+            @if (enterpriseCode(); as code) {
+              <div class="enterprise">{{ 'shell.enterpriseCode' | translate }}: {{ code }}</div>
+            }
           </div>
           <button type="button" mat-menu-item (click)="navigateToProfile()">
             <mat-icon fontIcon="person" aria-hidden="true"></mat-icon>

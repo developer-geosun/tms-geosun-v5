@@ -6,11 +6,15 @@ import java.util.Optional;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 public interface TollTariffSetRepository extends JpaRepository<TollTariffSet, String> {
-  List<TollTariffSet> findByActiveTrueOrderByNameAsc();
+  List<TollTariffSet> findByEnterpriseIdAndActiveTrueOrderByNameAsc(String enterpriseId);
 
-  List<TollTariffSet> findAllByOrderByNameAsc();
+  List<TollTariffSet> findByEnterpriseIdOrderByNameAsc(String enterpriseId);
 
-  Optional<TollTariffSet> findByNameIgnoreCaseAndActiveTrue(String name);
+  Optional<TollTariffSet> findByIdAndEnterpriseId(String id, String enterpriseId);
 
-  boolean existsByNameIgnoreCaseAndActiveTrueAndIdNot(String name, String id);
+  Optional<TollTariffSet> findByEnterpriseIdAndNameIgnoreCaseAndActiveTrue(
+      String enterpriseId, String name);
+
+  boolean existsByEnterpriseIdAndNameIgnoreCaseAndActiveTrueAndIdNot(
+      String enterpriseId, String name, String id);
 }

@@ -1,6 +1,7 @@
 package com.geosun.tms.reference.service;
 
 import com.geosun.tms.auth.exception.ApiException;
+import com.geosun.tms.enterprise.port.CurrentEnterprise;
 import com.geosun.tms.reference.domain.RegistrationScanSide;
 import com.geosun.tms.reference.domain.Vehicle;
 import com.geosun.tms.reference.domain.VehicleDocument;
@@ -47,25 +48,32 @@ public class VehicleService {
   private final VehicleRegistrationScanRepository scanRepository;
   private final VehicleDocumentRepository documentRepository;
   private final StoredFileService storedFileService;
+  private final CurrentEnterprise currentEnterprise;
 
   public VehicleService(
       VehicleRepository vehicleRepository,
       VehicleRegistrationScanRepository scanRepository,
       VehicleDocumentRepository documentRepository,
-      StoredFileService storedFileService) {
+      StoredFileService storedFileService,
+      CurrentEnterprise currentEnterprise) {
     this.vehicleRepository = vehicleRepository;
     this.scanRepository = scanRepository;
     this.documentRepository = documentRepository;
     this.storedFileService = storedFileService;
+    this.currentEnterprise = currentEnterprise;
   }
 
   @Transactional(readOnly = true)
   public List<VehicleDto> list(VehicleListView view) {
+    String enterpriseId = currentEnterprise.requireId();
     List<Vehicle> vehicles =
         switch (view == null ? VehicleListView.ACTIVE : view) {
-          case ACTIVE -> vehicleRepository.findByDeletedFalseOrderByPlateNumberAsc();
-          case DELETED -> vehicleRepository.findByDeletedTrueOrderByPlateNumberAsc();
-          case ALL -> vehicleRepository.findAllByOrderByPlateNumberAsc();
+          case ACTIVE ->
+              vehicleRepository.findByEnterpriseIdAndDeletedFalseOrderByPlateNumberAsc(
+                  enterpriseId);
+          case DELETED ->
+              vehicleRepository.findByEnterpriseIdAndDeletedTrueOrderByPlateNumberAsc(enterpriseId);
+          case ALL -> vehicleRepository.findByEnterpriseIdOrderByPlateNumberAsc(enterpriseId);
         };
     Map<String, VehicleDocumentCompliance> complianceMap =
         computeComplianceMap(Objects.requireNonNull(vehicles));
@@ -84,6 +92,7 @@ public class VehicleService {
   @Transactional
   public VehicleDto create(@NonNull CreateVehicleRequest request) {
     Vehicle vehicle = new Vehicle();
+    vehicle.setEnterpriseId(currentEnterprise.requireId());
     applyFields(
         vehicle,
         request.plateNumber(),
@@ -152,7 +161,7 @@ public class VehicleService {
   public Vehicle requireVehicle(@NonNull String id) {
     return Objects.requireNonNull(
         vehicleRepository
-            .findById(id)
+            .findByIdAndEnterpriseId(id, currentEnterprise.requireId())
             .orElseThrow(() -> ApiException.notFound("Vehicle not found")));
   }
 
@@ -196,6 +205,7 @@ public class VehicleService {
   }
 
   private void assertUnique(Vehicle vehicle, String excludeId) {
+    String enterpriseId = currentEnterprise.requireId();
     String plate = vehicle.getPlateNumber();
     String vin = vehicle.getVin();
     String series = vehicle.getRegistrationSeries();
@@ -203,17 +213,20 @@ public class VehicleService {
 
     boolean plateConflict =
         excludeId == null
-            ? vehicleRepository.existsByPlateNumberIgnoreCaseAndDeletedFalse(plate)
-            : vehicleRepository.existsByPlateNumberIgnoreCaseAndDeletedFalseAndIdNot(
-                plate, excludeId);
+            ? vehicleRepository.existsByEnterpriseIdAndPlateNumberIgnoreCaseAndDeletedFalse(
+                enterpriseId, plate)
+            : vehicleRepository.existsByEnterpriseIdAndPlateNumberIgnoreCaseAndDeletedFalseAndIdNot(
+                enterpriseId, plate, excludeId);
     if (plateConflict) {
       throw ApiException.conflict("PLATE_ALREADY_EXISTS", "Plate number already exists");
     }
 
     boolean vinConflict =
         excludeId == null
-            ? vehicleRepository.existsByVinIgnoreCaseAndDeletedFalse(vin)
-            : vehicleRepository.existsByVinIgnoreCaseAndDeletedFalseAndIdNot(vin, excludeId);
+            ? vehicleRepository.existsByEnterpriseIdAndVinIgnoreCaseAndDeletedFalse(
+                enterpriseId, vin)
+            : vehicleRepository.existsByEnterpriseIdAndVinIgnoreCaseAndDeletedFalseAndIdNot(
+                enterpriseId, vin, excludeId);
     if (vinConflict) {
       throw ApiException.conflict("VIN_ALREADY_EXISTS", "VIN already exists");
     }
@@ -221,11 +234,11 @@ public class VehicleService {
     boolean regConflict =
         excludeId == null
             ? vehicleRepository
-                .existsByRegistrationSeriesIgnoreCaseAndRegistrationNumberIgnoreCaseAndDeletedFalse(
-                    series, number)
+                .existsByEnterpriseIdAndRegistrationSeriesIgnoreCaseAndRegistrationNumberIgnoreCaseAndDeletedFalse(
+                    enterpriseId, series, number)
             : vehicleRepository
-                .existsByRegistrationSeriesIgnoreCaseAndRegistrationNumberIgnoreCaseAndDeletedFalseAndIdNot(
-                    series, number, excludeId);
+                .existsByEnterpriseIdAndRegistrationSeriesIgnoreCaseAndRegistrationNumberIgnoreCaseAndDeletedFalseAndIdNot(
+                    enterpriseId, series, number, excludeId);
     if (regConflict) {
       throw ApiException.conflict(
           "REGISTRATION_ALREADY_EXISTS", "Registration series/number already exists");

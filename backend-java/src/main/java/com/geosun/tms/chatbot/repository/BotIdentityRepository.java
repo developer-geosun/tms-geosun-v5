@@ -25,7 +25,11 @@ public interface BotIdentityRepository extends JpaRepository<BotIdentity, String
 
   List<BotIdentity> findByChannelAndStatus(ChatbotChannel channel, BotIdentityStatus status);
 
-  long countByChannelAndStatus(ChatbotChannel channel, BotIdentityStatus status);
+  long countByEnterpriseIdAndChannelAndStatus(
+      String enterpriseId, ChatbotChannel channel, BotIdentityStatus status);
 
-  Page<BotIdentity> findByChannel(ChatbotChannel channel, Pageable pageable);
+  Page<BotIdentity> findByEnterpriseIdAndChannel(
+      String enterpriseId, ChatbotChannel channel, Pageable pageable);
+
+  Page<BotIdentity> findByEnterpriseId(String enterpriseId, Pageable pageable);
 }

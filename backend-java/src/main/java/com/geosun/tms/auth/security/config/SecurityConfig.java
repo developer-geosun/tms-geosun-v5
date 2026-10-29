@@ -8,6 +8,9 @@ import com.geosun.tms.auth.repository.UserRepository;
 import com.geosun.tms.auth.security.SecurityErrorWriter;
 import com.geosun.tms.auth.security.jwt.JwtAuthenticationFilter;
 import com.geosun.tms.auth.security.jwt.JwtService;
+import com.geosun.tms.enterprise.repository.EnterpriseRepository;
+import com.geosun.tms.enterprise.repository.PlatformOperatorRefreshTokenRepository;
+import com.geosun.tms.enterprise.repository.PlatformOperatorRepository;
 import com.geosun.tms.routes.config.CountryBreakdownProperties;
 import com.geosun.tms.routes.config.HereProperties;
 import jakarta.servlet.http.HttpServletResponse;
@@ -76,8 +79,14 @@ public class SecurityConfig {
                     "/api/v1/auth/reset-password-info",
                     "/api/v1/auth/reset-password",
                     "/api/v1/auth/refresh",
+                    "/api/v1/platform/auth/login",
+                    "/api/v1/platform/auth/refresh",
                     "/api/v1/webhooks/telegram")
                 .permitAll()
+                // Оператор платформи; співробітник отримує 403 PLATFORM_SCOPE_REQUIRED у фільтрі
+                // JWT
+                .requestMatchers("/api/v1/platform/**")
+                .hasRole("PLATFORM_OPERATOR")
                 // Список і картка користувачів — ADMIN і MANAGER (лише читання контактів)
                 .requestMatchers(HttpMethod.GET, "/api/v1/admin/users", "/api/v1/admin/users/*")
                 .hasAnyRole("ADMIN", "MANAGER")
@@ -135,9 +144,18 @@ public class SecurityConfig {
       JwtService jwtService,
       UserRepository userRepository,
       RefreshTokenRepository refreshTokenRepository,
+      EnterpriseRepository enterpriseRepository,
+      PlatformOperatorRepository platformOperatorRepository,
+      PlatformOperatorRefreshTokenRepository platformRefreshTokenRepository,
       ObjectMapper objectMapper) {
     return new JwtAuthenticationFilter(
-        jwtService, userRepository, refreshTokenRepository, objectMapper);
+        jwtService,
+        userRepository,
+        refreshTokenRepository,
+        enterpriseRepository,
+        platformOperatorRepository,
+        platformRefreshTokenRepository,
+        objectMapper);
   }
 
   @Bean

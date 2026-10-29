@@ -17,6 +17,9 @@ public class StoredFile {
   @Column(name = "id", nullable = false, updatable = false, length = 36)
   private String id;
 
+  @Column(name = "enterprise_id", length = 36)
+  private String enterpriseId;
+
   @Column(name = "storage_key", nullable = false, unique = true, length = 512)
   private String storageKey;
 
@@ -49,6 +52,14 @@ public class StoredFile {
 
   public void setId(String id) {
     this.id = id;
+  }
+
+  public String getEnterpriseId() {
+    return enterpriseId;
+  }
+
+  public void setEnterpriseId(String enterpriseId) {
+    this.enterpriseId = enterpriseId;
   }
 
   public String getStorageKey() {

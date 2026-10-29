@@ -7,17 +7,21 @@ import org.springframework.data.jpa.repository.JpaRepository;
 
 public interface DriverRepository extends JpaRepository<Driver, String> {
 
-  List<Driver> findByDeletedFalseOrderByLastNameAscFirstNameAsc();
+  List<Driver> findByEnterpriseIdAndDeletedFalseOrderByLastNameAscFirstNameAsc(String enterpriseId);
 
-  List<Driver> findByDeletedTrueOrderByLastNameAscFirstNameAsc();
+  List<Driver> findByEnterpriseIdAndDeletedTrueOrderByLastNameAscFirstNameAsc(String enterpriseId);
 
-  List<Driver> findAllByOrderByLastNameAscFirstNameAsc();
+  List<Driver> findByEnterpriseIdOrderByLastNameAscFirstNameAsc(String enterpriseId);
 
-  boolean existsByLicenseNumberIgnoreCaseAndDeletedFalse(String licenseNumber);
+  boolean existsByEnterpriseIdAndLicenseNumberIgnoreCaseAndDeletedFalse(
+      String enterpriseId, String licenseNumber);
 
-  boolean existsByLicenseNumberIgnoreCaseAndDeletedFalseAndIdNot(String licenseNumber, String id);
+  boolean existsByEnterpriseIdAndLicenseNumberIgnoreCaseAndDeletedFalseAndIdNot(
+      String enterpriseId, String licenseNumber, String id);
 
-  Optional<Driver> findByIdAndDeletedFalse(String id);
+  Optional<Driver> findByIdAndEnterpriseId(String id, String enterpriseId);
+
+  Optional<Driver> findByIdAndEnterpriseIdAndDeletedFalse(String id, String enterpriseId);
 
   Optional<Driver> findByUserId(String userId);
 

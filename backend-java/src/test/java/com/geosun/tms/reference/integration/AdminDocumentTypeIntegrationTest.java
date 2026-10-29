@@ -25,6 +25,7 @@ import com.geosun.tms.reference.dto.request.DocumentTypeScanPageRequest;
 import com.geosun.tms.reference.dto.request.UpdateDocumentTypeRequest;
 import com.geosun.tms.reference.repository.CountryReferenceRepository;
 import com.geosun.tms.reference.repository.DocumentTypeReferenceRepository;
+import com.geosun.tms.support.TestEnterprise;
 import java.util.List;
 import java.util.Objects;
 import org.junit.jupiter.api.BeforeEach;
@@ -479,6 +480,7 @@ class AdminDocumentTypeIntegrationTest {
       List<DocumentTypeFieldDefinition> fields) {
     DocumentTypeReference row = new DocumentTypeReference();
     row.setId(id);
+    row.setEnterpriseId(TestEnterprise.ID);
     row.setNameUk(nameUk);
     row.setNameEn(nameEn);
     row.setNameRu(nameRu);
@@ -503,6 +505,7 @@ class AdminDocumentTypeIntegrationTest {
 
   private User saveUser(String email, String password, Role role) {
     User user = new User();
+    user.setEnterpriseId(TestEnterprise.ID);
     user.setEmail(email);
     user.setPasswordHash(passwordEncoder.encode(password));
     user.setRole(role);
@@ -517,7 +520,9 @@ class AdminDocumentTypeIntegrationTest {
             .perform(
                 post("/api/v1/auth/login")
                     .contentType(json())
-                    .content(Objects.requireNonNull(toJson(new LoginRequest(email, password)))))
+                    .content(
+                        Objects.requireNonNull(
+                            toJson(new LoginRequest(TestEnterprise.CODE, email, password)))))
             .andExpect(status().isOk())
             .andReturn();
     JsonNode body = objectMapper.readTree(result.getResponse().getContentAsString());

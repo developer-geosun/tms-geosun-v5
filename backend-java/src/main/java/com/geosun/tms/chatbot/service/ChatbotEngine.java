@@ -3,6 +3,7 @@ package com.geosun.tms.chatbot.service;
 import com.geosun.tms.auth.domain.profile.PhoneE164Normalizer;
 import com.geosun.tms.auth.domain.profile.UserContactPhone;
 import com.geosun.tms.auth.repository.UserContactPhoneRepository;
+import com.geosun.tms.auth.repository.UserRepository;
 import com.geosun.tms.chatbot.adapter.ChatbotChannelAdapter;
 import com.geosun.tms.chatbot.adapter.ChatbotInboundEvent;
 import com.geosun.tms.chatbot.adapter.ChatbotOutboundMessage;
@@ -42,13 +43,16 @@ public class ChatbotEngine {
   private final BotMessageLogRepository botMessageLogRepository;
   private final UserContactPhoneRepository userContactPhoneRepository;
   private final ChatbotLinkService chatbotLinkService;
+  private final UserRepository userRepository;
 
   public ChatbotEngine(
       BotLinkCodeRepository botLinkCodeRepository,
       BotIdentityRepository botIdentityRepository,
       BotMessageLogRepository botMessageLogRepository,
       UserContactPhoneRepository userContactPhoneRepository,
-      ChatbotLinkService chatbotLinkService) {
+      ChatbotLinkService chatbotLinkService,
+      UserRepository userRepository) {
+    this.userRepository = userRepository;
     this.botLinkCodeRepository = botLinkCodeRepository;
     this.botIdentityRepository = botIdentityRepository;
     this.botMessageLogRepository = botMessageLogRepository;
@@ -176,23 +180,43 @@ public class ChatbotEngine {
     }
 
     String linkUserId = Objects.requireNonNull(link.getUserId());
-    // Звільнити UNIQUE (channel, external_user_id), якщо chat вже був у іншого користувача.
-    botIdentityRepository
-        .findByChannelAndExternalUserId(adapter.channel(), Objects.requireNonNull(externalUserId))
-        .ifPresent(
-            other -> {
-              BotIdentity otherIdentity = Objects.requireNonNull(other);
-              if (!Objects.equals(otherIdentity.getUserId(), linkUserId)
-                  && otherIdentity.getStatus() == BotIdentityStatus.ACTIVE) {
-                chatbotLinkService.revokeIdentity(otherIdentity);
-              }
-            });
+    String linkEnterpriseId =
+        userRepository.findById(linkUserId).map(user -> user.getEnterpriseId()).orElse(null);
+
+    Optional<BotIdentity> otherOpt =
+        botIdentityRepository.findByChannelAndExternalUserId(
+            adapter.channel(), Objects.requireNonNull(externalUserId));
+    if (otherOpt.isPresent()) {
+      BotIdentity otherIdentity = Objects.requireNonNull(otherOpt.get());
+      if (!Objects.equals(otherIdentity.getUserId(), linkUserId)
+          && otherIdentity.getStatus() == BotIdentityStatus.ACTIVE) {
+        // Чат уже активний у користувача іншого підприємства — перепривʼязку забороняємо.
+        String otherEnterpriseId = resolveIdentityEnterpriseId(otherIdentity);
+        if (!Objects.equals(otherEnterpriseId, linkEnterpriseId)) {
+          log.warn(
+              "chatbot_link_rejected_cross_enterprise channel={} userId={}",
+              adapter.channel(),
+              linkUserId);
+          reply(
+              adapter,
+              externalUserId,
+              existingIdentity,
+              ChatbotMessages.LINK_INVALID_CODE,
+              false,
+              "LINK_FAILED");
+          return;
+        }
+        // Звільнити UNIQUE (channel, external_user_id) у межах того самого підприємства.
+        chatbotLinkService.revokeIdentity(otherIdentity);
+      }
+    }
 
     BotIdentity identity =
         botIdentityRepository
             .findByUserIdAndChannel(linkUserId, adapter.channel())
-            .orElseGet(BotIdentity::new);
+            .orElseGet(() -> new BotIdentity());
     identity.setUserId(linkUserId);
+    identity.setEnterpriseId(linkEnterpriseId);
     identity.setChannel(adapter.channel());
     identity.setExternalUserId(externalUserId);
     identity.setLocale("ua");
@@ -207,6 +231,18 @@ public class ChatbotEngine {
 
     log.info("chatbot_linked channel={} userId={}", adapter.channel(), linkUserId);
     reply(adapter, externalUserId, saved, ChatbotMessages.ASK_SHARE_CONTACT, true, "LINK_OK");
+  }
+
+  /** Підприємство прив'язки: власне поле або (для старих рядків) підприємство користувача. */
+  private String resolveIdentityEnterpriseId(@NonNull BotIdentity identity) {
+    if (identity.getEnterpriseId() != null) {
+      return identity.getEnterpriseId();
+    }
+    String userId = identity.getUserId();
+    if (userId == null) {
+      return null;
+    }
+    return userRepository.findById(userId).map(user -> user.getEnterpriseId()).orElse(null);
   }
 
   private void handleContact(

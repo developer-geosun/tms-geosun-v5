@@ -34,12 +34,20 @@ public final class SecurityPathRules {
             "/api/v1/auth/reset-password-info",
             "/api/v1/auth/reset-password",
             "/api/v1/auth/refresh",
+            "/api/v1/platform/auth/login",
+            "/api/v1/platform/auth/refresh",
             "/api/v1/webhooks/telegram" ->
             true;
         default -> false;
       };
     }
     return false;
+  }
+
+  /** Маршрути оператора платформи: доступні лише з токеном kind=operator. */
+  public static boolean isPlatformPath(HttpServletRequest request) {
+    String path = normalizePath(request);
+    return "/api/v1/platform".equals(path) || path.startsWith("/api/v1/platform/");
   }
 
   private static String normalizePath(HttpServletRequest request) {

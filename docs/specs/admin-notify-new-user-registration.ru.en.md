@@ -34,6 +34,7 @@
   - [`TECHNICAL_SPECIFICATION_API_SERVER_v1.0.ru.md`](../archive/TECHNICAL_SPECIFICATION_API_SERVER_v1.0.ru.md) (архив, исторический MVP) — `POST /auth/register`.
   - [`admin-user-management.ru.en.md`](admin-user-management.ru.en.md) — карточка `/admin/users/{id}` как цель ссылки.
   - [`auth-authentication-authorization.ru.en.md`](auth-authentication-authorization.ru.en.md) — роли, JWT (этот хук публичный API не добавляет).
+  - [`multi-enterprise.ru.en.md`](multi-enterprise.ru.en.md) (B21) — получатели только ADMIN того же предприятия.
 - **Environment constraints / Ограничения окружения:** Java 21 / Spring Boot 3, MySQL, Angular 21 + Material, i18n ua/en/ru (файлы `uk.json` / `en.json` / `ru.json` не переименовывать). SMTP — тот же `app.email.*`, что верификация. Ссылка в сообщении — **только Angular** (`app.email.angular-app-base-url` + `/admin/users/{id}`), Flutter-URL не использовать.
 
 ## 3) Scope (In) / Scope (входит в задачу)

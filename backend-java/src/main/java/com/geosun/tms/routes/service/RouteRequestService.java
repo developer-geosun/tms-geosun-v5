@@ -1,6 +1,7 @@
 package com.geosun.tms.routes.service;
 
 import com.geosun.tms.auth.exception.ApiException;
+import com.geosun.tms.enterprise.port.CurrentEnterprise;
 import com.geosun.tms.freight.cost.service.FreightNumericScenarioService;
 import com.geosun.tms.routes.domain.Route;
 import com.geosun.tms.routes.domain.RoutePoint;
@@ -52,6 +53,7 @@ public class RouteRequestService {
   private final RouteCountryDistanceRepository routeCountryDistanceRepository;
   private final FreightNumericScenarioService freightNumericScenarioService;
   private final FreightRequestCreatedNotifyPort freightRequestCreatedNotifyPort;
+  private final CurrentEnterprise currentEnterprise;
 
   public RouteRequestService(
       RouteRepository routeRepository,
@@ -61,7 +63,8 @@ public class RouteRequestService {
       FreightQuoteService freightQuoteService,
       RouteCountryDistanceRepository routeCountryDistanceRepository,
       FreightNumericScenarioService freightNumericScenarioService,
-      FreightRequestCreatedNotifyPort freightRequestCreatedNotifyPort) {
+      FreightRequestCreatedNotifyPort freightRequestCreatedNotifyPort,
+      CurrentEnterprise currentEnterprise) {
     this.routeRepository = routeRepository;
     this.routeRequestRepository = routeRequestRepository;
     this.historyRepository = historyRepository;
@@ -70,17 +73,20 @@ public class RouteRequestService {
     this.routeCountryDistanceRepository = routeCountryDistanceRepository;
     this.freightNumericScenarioService = freightNumericScenarioService;
     this.freightRequestCreatedNotifyPort = freightRequestCreatedNotifyPort;
+    this.currentEnterprise = currentEnterprise;
   }
 
   @Transactional
   public RouteRequestDto createRouteRequest(String userId, CreateRouteRequestRequest request) {
     Long routeId = parseRouteId(request.routeId());
+    String enterpriseId = currentEnterprise.requireId();
     Route route =
         routeRepository
-            .findByIdAndUserIdAndDeletedFalse(routeId, userId)
+            .findByIdAndEnterpriseIdAndUserIdAndDeletedFalse(routeId, enterpriseId, userId)
             .orElseThrow(() -> ApiException.notFound("Route not found"));
 
     RouteRequest routeRequest = new RouteRequest();
+    routeRequest.setEnterpriseId(enterpriseId);
     routeRequest.setUser(route.getUser());
     routeRequest.setRoute(route);
     routeRequest.setStatus(RouteRequestStatus.NEW);
@@ -126,7 +132,9 @@ public class RouteRequestService {
 
   @Transactional(readOnly = true)
   public List<RouteRequestDto> getMyRouteRequests(String userId) {
-    return routeRequestRepository.findByUserIdOrderByCreatedAtDesc(userId).stream()
+    return routeRequestRepository
+        .findByEnterpriseIdAndUserIdOrderByCreatedAtDesc(currentEnterprise.requireId(), userId)
+        .stream()
         .map((request) -> toDto(request, false))
         .toList();
   }
@@ -135,7 +143,7 @@ public class RouteRequestService {
   public RouteRequestDto getMyRouteRequestById(String userId, Long requestId) {
     RouteRequest request =
         routeRequestRepository
-            .findByIdAndUserId(requestId, userId)
+            .findByIdAndEnterpriseIdAndUserId(requestId, currentEnterprise.requireId(), userId)
             .orElseThrow(() -> ApiException.notFound("Route request not found"));
     return toDto(request, true);
   }
@@ -147,6 +155,7 @@ public class RouteRequestService {
     Sort sort = resolveAdminSort(query.sort(), query.order());
     Specification<RouteRequest> spec =
         RouteRequestSpecifications.adminFilter(
+            currentEnterprise.requireId(),
             query.status(),
             parseInstantDate(query.createdFrom(), true),
             parseInstantDate(query.createdTo(), false),
@@ -167,7 +176,7 @@ public class RouteRequestService {
   /** Довідник email власників заявок для випадаючого списку у фільтрі адмінки. */
   @Transactional(readOnly = true)
   public List<String> getOwnerEmailsForAdmin() {
-    return routeRequestRepository.findDistinctOwnerEmails().stream()
+    return routeRequestRepository.findDistinctOwnerEmails(currentEnterprise.requireId()).stream()
         .filter(StringUtils::hasText)
         .map(email -> email.trim())
         .distinct()
@@ -182,7 +191,8 @@ public class RouteRequestService {
     }
     RouteRequest request =
         routeRequestRepository
-            .findById(Objects.requireNonNull(requestId))
+            .findByIdAndEnterpriseId(
+                Objects.requireNonNull(requestId), currentEnterprise.requireId())
             .orElseThrow(() -> ApiException.notFound("Route request not found"));
     return toDto(request, true);
   }
@@ -196,7 +206,8 @@ public class RouteRequestService {
     }
     RouteRequest request =
         routeRequestRepository
-            .findById(Objects.requireNonNull(requestId))
+            .findByIdAndEnterpriseId(
+                Objects.requireNonNull(requestId), currentEnterprise.requireId())
             .orElseThrow(() -> ApiException.notFound("Route request not found"));
 
     if (body != null && StringUtils.hasText(body.scenarioId())) {

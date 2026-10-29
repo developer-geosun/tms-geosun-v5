@@ -40,6 +40,21 @@ export class BackendApiService {
     return this.build('/admin/currencies');
   }
 
+  /** Підприємства (кабінет оператора платформи). */
+  get platformEnterprises(): string {
+    return this.build('/platform/enterprises');
+  }
+
+  /** Запис валют і синхронізація НБУ — лише оператор платформи. */
+  get platformCurrencies(): string {
+    return this.build('/platform/currencies');
+  }
+
+  /** Читання довідника країн оператором платформи. */
+  get platformCountryReference(): string {
+    return this.build('/platform/country-reference');
+  }
+
   get adminCountryReference(): string {
     return this.build('/admin/country-reference');
   }

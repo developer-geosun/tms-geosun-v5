@@ -7,26 +7,33 @@ import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import org.springframework.lang.NonNull;
 
 public interface RouteRequestRepository
     extends JpaRepository<RouteRequest, Long>, JpaSpecificationExecutor<RouteRequest> {
   boolean existsByRoute_Id(Long routeId);
 
+  boolean existsByIdAndEnterpriseId(Long id, String enterpriseId);
+
   @EntityGraph(attributePaths = {"route", "user"})
-  List<RouteRequest> findByUserIdOrderByCreatedAtDesc(String userId);
+  List<RouteRequest> findByEnterpriseIdAndUserIdOrderByCreatedAtDesc(
+      String enterpriseId, String userId);
 
   @EntityGraph(attributePaths = {"route", "route.points", "user"})
-  Optional<RouteRequest> findByIdAndUserId(Long id, String userId);
+  Optional<RouteRequest> findByIdAndEnterpriseIdAndUserId(
+      Long id, String enterpriseId, String userId);
 
-  @EntityGraph(attributePaths = {"route", "user"})
-  List<RouteRequest> findAllByOrderByCreatedAtDesc();
+  @EntityGraph(attributePaths = {"route", "route.points", "user"})
+  Optional<RouteRequest> findByIdAndEnterpriseId(Long id, String enterpriseId);
 
   @EntityGraph(attributePaths = {"route", "route.points", "user"})
   @NonNull
   Optional<RouteRequest> findById(@NonNull Long id);
 
-  /** Унікальні email власників заявок — довідник для фільтра адмінки. */
-  @Query("select distinct u.email from RouteRequest r join r.user u where u.email is not null")
-  List<String> findDistinctOwnerEmails();
+  /** Унікальні email власників заявок підприємства — довідник для фільтра адмінки. */
+  @Query(
+      "select distinct u.email from RouteRequest r join r.user u"
+          + " where u.email is not null and r.enterpriseId = :enterpriseId")
+  List<String> findDistinctOwnerEmails(@Param("enterpriseId") String enterpriseId);
 }

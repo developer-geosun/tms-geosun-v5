@@ -13,6 +13,7 @@ import com.geosun.tms.auth.dto.request.LoginRequest;
 import com.geosun.tms.auth.repository.UserRepository;
 import com.geosun.tms.reference.domain.CountryReference;
 import com.geosun.tms.reference.repository.CountryReferenceRepository;
+import com.geosun.tms.support.TestEnterprise;
 import java.util.Objects;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -94,6 +95,7 @@ class CountryReferenceApiIntegrationTest {
 
   private User createUser(String email, Role role) {
     User user = new User();
+    user.setEnterpriseId(TestEnterprise.ID);
     user.setEmail(email);
     user.setPasswordHash(passwordEncoder.encode("Secret123"));
     user.setRole(role);
@@ -108,7 +110,9 @@ class CountryReferenceApiIntegrationTest {
             .perform(
                 post("/api/v1/auth/login")
                     .contentType(Objects.requireNonNull(MediaType.APPLICATION_JSON))
-                    .content(Objects.requireNonNull(toJson(new LoginRequest(email, "Secret123")))))
+                    .content(
+                        Objects.requireNonNull(
+                            toJson(new LoginRequest(TestEnterprise.CODE, email, "Secret123")))))
             .andExpect(status().isOk())
             .andReturn();
     return objectMapper

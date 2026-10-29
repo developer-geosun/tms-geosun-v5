@@ -90,6 +90,7 @@ public class ChatbotLinkService {
     Instant expiresAt = Instant.now().plus(CODE_TTL_MINUTES, ChronoUnit.MINUTES);
     BotLinkCode row = new BotLinkCode();
     row.setUserId(userId);
+    row.setEnterpriseId(user.getEnterpriseId());
     row.setChannel(channel);
     row.setCode(code);
     row.setExpiresAt(expiresAt);

@@ -1,8 +1,10 @@
 package com.geosun.tms.auth.security;
 
 import com.geosun.tms.auth.domain.user.Role;
+import com.geosun.tms.auth.exception.ApiException;
 import java.util.Collection;
 import java.util.List;
+import java.util.Objects;
 import org.springframework.lang.NonNull;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
@@ -20,11 +22,33 @@ public class UserPrincipal implements UserDetails {
   private final Role role;
   private final String refreshSessionId;
 
-  public UserPrincipal(@NonNull String userId, String email, Role role, String refreshSessionId) {
+  /** Підприємство співробітника; null лише для рядків до переносу в перше підприємство. */
+  private final String enterpriseId;
+
+  public UserPrincipal(
+      @NonNull String userId,
+      String email,
+      Role role,
+      String refreshSessionId,
+      String enterpriseId) {
     this.userId = userId;
     this.email = email;
     this.role = role;
     this.refreshSessionId = refreshSessionId;
+    this.enterpriseId = enterpriseId;
+  }
+
+  public String getEnterpriseId() {
+    return enterpriseId;
+  }
+
+  /** Підприємство для scope адмін-операцій; без нього (старі рядки до переносу) — 403. */
+  public @NonNull String requireEnterpriseId() {
+    if (enterpriseId == null) {
+      throw ApiException.forbidden(
+          "ENTERPRISE_SCOPE_REQUIRED", "User is not assigned to an enterprise");
+    }
+    return Objects.requireNonNull(enterpriseId);
   }
 
   public @NonNull String getUserId() {

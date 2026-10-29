@@ -21,6 +21,7 @@ import com.geosun.tms.reference.dto.request.CreateDriverRequest;
 import com.geosun.tms.reference.dto.request.CreateVehicleCombinationRequest;
 import com.geosun.tms.reference.dto.request.CreateVehicleRequest;
 import com.geosun.tms.reference.dto.request.LinkDriverUserRequest;
+import com.geosun.tms.support.TestEnterprise;
 import java.time.LocalDate;
 import java.util.Objects;
 import org.junit.jupiter.api.Test;
@@ -235,6 +236,7 @@ class AdminDriverAndCombinationIntegrationTest {
 
   private User saveUser(String email, String password, Role role) {
     User u = new User();
+    u.setEnterpriseId(TestEnterprise.ID);
     u.setEmail(email);
     u.setPasswordHash(passwordEncoder.encode(password));
     u.setRole(role);
@@ -249,7 +251,7 @@ class AdminDriverAndCombinationIntegrationTest {
             .perform(
                 post("/api/v1/auth/login")
                     .contentType(json())
-                    .content(toJson(new LoginRequest(email, password))))
+                    .content(toJson(new LoginRequest(TestEnterprise.CODE, email, password))))
             .andExpect(status().isOk())
             .andReturn();
     JsonNode n = objectMapper.readTree(result.getResponse().getContentAsString());

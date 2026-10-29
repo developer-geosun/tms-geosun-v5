@@ -16,6 +16,7 @@ import com.geosun.tms.reference.domain.Currency;
 import com.geosun.tms.reference.domain.CurrencyNbuRate;
 import com.geosun.tms.reference.repository.CurrencyNbuRateRepository;
 import com.geosun.tms.reference.repository.CurrencyRepository;
+import com.geosun.tms.support.TestEnterprise;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
@@ -279,6 +280,7 @@ class FreightNumericPricingApiIntegrationTest {
 
   private User createUser(String email, String password, Role role) {
     User user = new User();
+    user.setEnterpriseId(TestEnterprise.ID);
     user.setEmail(email);
     user.setPasswordHash(passwordEncoder.encode(password));
     user.setRole(role);
@@ -293,7 +295,7 @@ class FreightNumericPricingApiIntegrationTest {
             .perform(
                 post("/api/v1/auth/login")
                     .contentType(jsonContentType())
-                    .content(toJson(new LoginRequest(email, password))))
+                    .content(toJson(new LoginRequest(TestEnterprise.CODE, email, password))))
             .andExpect(status().isOk())
             .andReturn();
     return objectMapper

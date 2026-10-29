@@ -8,7 +8,19 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { AuthService } from '../../core/services';
+import { ENTERPRISE_CODE_MAX_LENGTH } from '../../core/utils/enterprise-code';
 import { TranslateModule } from '@ngx-translate/core';
+
+type LoginErrorCode =
+  | '401'
+  | '403'
+  | 'account_disabled'
+  | 'user_deleted'
+  | 'email_not_verified'
+  | 'enterprise_suspended'
+  | 'generic';
+
+type ResendState = 'idle' | 'loading' | 'success' | 'error';
 
 @Component({
   selector: 'app-login',
@@ -34,14 +46,16 @@ export class LoginComponent {
   private readonly router = inject(Router);
   private readonly route = inject(ActivatedRoute);
 
+  protected readonly enterpriseCodeMaxLength = ENTERPRISE_CODE_MAX_LENGTH;
+
   readonly isLoading = signal(false);
   readonly hasSuccess = signal(false);
-  readonly errorCode = signal<
-    '401' | '403' | 'account_disabled' | 'user_deleted' | 'email_not_verified' | 'generic' | null
-  >(null);
+  readonly errorCode = signal<LoginErrorCode | null>(null);
+  readonly resendState = signal<ResendState>('idle');
   readonly isPasswordVisible = signal(false);
 
   readonly form = this.formBuilder.nonNullable.group({
+    enterpriseCode: ['', [Validators.required, Validators.maxLength(ENTERPRISE_CODE_MAX_LENGTH)]],
     email: ['', [Validators.required, Validators.email]],
     password: ['', [Validators.required, Validators.minLength(8)]]
   });
@@ -54,6 +68,7 @@ export class LoginComponent {
 
     this.errorCode.set(null);
     this.hasSuccess.set(false);
+    this.resendState.set('idle');
     this.isLoading.set(true);
 
     this.authService.login(this.form.getRawValue()).subscribe({
@@ -73,9 +88,23 @@ export class LoginComponent {
     });
   }
 
-  private mapErrorCode(
-    error: { status?: number; error?: { code?: string } }
-  ): '401' | '403' | 'account_disabled' | 'user_deleted' | 'email_not_verified' | 'generic' {
+  /** Повторна відправка листа підтвердження (код підприємства + email з форми входу). */
+  resendVerification(): void {
+    const { enterpriseCode, email } = this.form.getRawValue();
+    if (this.resendState() === 'loading' || !enterpriseCode.trim() || !email.trim()) {
+      this.form.controls.enterpriseCode.markAsTouched();
+      this.form.controls.email.markAsTouched();
+      return;
+    }
+
+    this.resendState.set('loading');
+    this.authService.resendVerification({ enterpriseCode, email: email.trim() }).subscribe({
+      next: () => this.resendState.set('success'),
+      error: () => this.resendState.set('error')
+    });
+  }
+
+  private mapErrorCode(error: { status?: number; error?: { code?: string } }): LoginErrorCode {
     const code = error.error?.code;
     if (error.status === 403 && code === 'EMAIL_NOT_VERIFIED') {
       return 'email_not_verified';
@@ -86,6 +115,10 @@ export class LoginComponent {
     if (error.status === 403 && code === 'USER_DELETED') {
       return 'user_deleted';
     }
+    if (error.status === 403 && code === 'ENTERPRISE_SUSPENDED') {
+      return 'enterprise_suspended';
+    }
+    // Невірний код / email / пароль — одна й та сама відповідь без уточнення, яке поле хибне
     if (error.status === 401) {
       return '401';
     }

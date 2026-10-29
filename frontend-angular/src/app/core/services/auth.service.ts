@@ -12,6 +12,7 @@ import {
   throwError,
   timeout
 } from 'rxjs';
+import { normalizeEnterpriseCode } from '../utils/enterprise-code';
 import { ConfigService } from './config.service';
 import {
   AuthState,
@@ -25,6 +26,7 @@ import {
   RefreshResponse,
   RegisterRequest,
   RegisterResponse,
+  ResendVerificationRequest,
   ResetPasswordRequest,
   VerifyEmailRequest,
   UserRole
@@ -53,6 +55,8 @@ export class AuthService {
   private resolveSessionRestored!: () => void;
 
   readonly user = computed(() => this.state().user);
+  /** Код підприємства поточного співробітника (з AuthUser). */
+  readonly enterpriseCode = computed(() => this.state().user?.enterpriseCode ?? null);
   readonly accessToken = computed(() => this.state().accessToken);
   readonly isAuthenticated = computed(() => Boolean(this.state().accessToken && this.state().user));
   readonly sessionRestored = computed(() => this.sessionRestoredSignal());
@@ -87,7 +91,8 @@ export class AuthService {
   }
 
   login(payload: LoginRequest): Observable<AuthUser> {
-    return this.http.post<LoginResponse | ApiErrorEnvelope>(this.toApiUrl('/auth/login'), payload).pipe(
+    const body: LoginRequest = { ...payload, enterpriseCode: normalizeEnterpriseCode(payload.enterpriseCode) };
+    return this.http.post<LoginResponse | ApiErrorEnvelope>(this.toApiUrl('/auth/login'), body).pipe(
       map((response) => this.ensureSuccessResponse_(response)),
       tap((response) =>
         this.setSession(response.accessToken, response.refreshToken, this.normalizeUser_(response.user))
@@ -97,7 +102,8 @@ export class AuthService {
   }
 
   register(payload: RegisterRequest): Observable<RegisterResponse> {
-    return this.http.post<RegisterResponse | ApiErrorEnvelope>(this.toApiUrl('/auth/register'), payload).pipe(
+    const body: RegisterRequest = { ...payload, enterpriseCode: normalizeEnterpriseCode(payload.enterpriseCode) };
+    return this.http.post<RegisterResponse | ApiErrorEnvelope>(this.toApiUrl('/auth/register'), body).pipe(
       map((response) => this.ensureSuccessResponse_(response)),
       map((response) => ({ ...response, role: normalizeRole_(response.role) }))
     );
@@ -110,8 +116,23 @@ export class AuthService {
   }
 
   forgotPassword(payload: ForgotPasswordRequest): Observable<OperationSuccessResponse> {
+    const body: ForgotPasswordRequest = {
+      ...payload,
+      enterpriseCode: normalizeEnterpriseCode(payload.enterpriseCode)
+    };
     return this.http
-      .post<OperationSuccessResponse | ApiErrorEnvelope>(this.toApiUrl('/auth/forgot-password'), payload)
+      .post<OperationSuccessResponse | ApiErrorEnvelope>(this.toApiUrl('/auth/forgot-password'), body)
+      .pipe(map((response) => this.ensureSuccessResponse_(response)));
+  }
+
+  /** Повторна відправка листа підтвердження email (потрібен код підприємства). */
+  resendVerification(payload: ResendVerificationRequest): Observable<OperationSuccessResponse> {
+    const body: ResendVerificationRequest = {
+      ...payload,
+      enterpriseCode: normalizeEnterpriseCode(payload.enterpriseCode)
+    };
+    return this.http
+      .post<OperationSuccessResponse | ApiErrorEnvelope>(this.toApiUrl('/auth/resend-verification'), body)
       .pipe(map((response) => this.ensureSuccessResponse_(response)));
   }
 

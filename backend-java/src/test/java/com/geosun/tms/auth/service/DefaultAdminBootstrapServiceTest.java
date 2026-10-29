@@ -10,7 +10,9 @@ import com.geosun.tms.auth.config.DefaultAdminBootstrapProperties;
 import com.geosun.tms.auth.domain.user.Role;
 import com.geosun.tms.auth.domain.user.User;
 import com.geosun.tms.auth.repository.UserRepository;
+import com.geosun.tms.enterprise.repository.EnterpriseRepository;
 import java.util.Objects;
+import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -25,6 +27,7 @@ class DefaultAdminBootstrapServiceTest {
 
   @Mock private UserRepository userRepository;
   @Mock private PasswordEncoder passwordEncoder;
+  @Mock private EnterpriseRepository enterpriseRepository;
 
   private DefaultAdminBootstrapProperties properties;
   private DefaultAdminBootstrapService service;
@@ -32,7 +35,10 @@ class DefaultAdminBootstrapServiceTest {
   @BeforeEach
   void setUp() {
     properties = new DefaultAdminBootstrapProperties();
-    service = new DefaultAdminBootstrapService(userRepository, passwordEncoder, properties);
+    when(enterpriseRepository.findFirstByOrderByCreatedAtAsc()).thenReturn(Optional.empty());
+    service =
+        new DefaultAdminBootstrapService(
+            userRepository, passwordEncoder, properties, enterpriseRepository);
   }
 
   @Test

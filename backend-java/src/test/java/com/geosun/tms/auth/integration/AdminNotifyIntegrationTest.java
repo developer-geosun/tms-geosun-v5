@@ -26,6 +26,7 @@ import com.geosun.tms.auth.repository.UserRepository;
 import com.geosun.tms.chatbot.repository.BotIdentityRepository;
 import com.geosun.tms.chatbot.repository.BotLinkCodeRepository;
 import com.geosun.tms.chatbot.repository.BotMessageLogRepository;
+import com.geosun.tms.support.TestEnterprise;
 import jakarta.mail.internet.MimeMessage;
 import java.util.Objects;
 import java.util.UUID;
@@ -93,7 +94,10 @@ class AdminNotifyIntegrationTest {
         .perform(
             post("/api/v1/auth/register")
                 .contentType(jsonContentType())
-                .content(toJson(new RegisterRequest("newbie@example.com", "Secret123"))))
+                .content(
+                    toJson(
+                        new RegisterRequest(
+                            TestEnterprise.CODE, "newbie@example.com", "Secret123"))))
         .andExpect(status().isCreated());
 
     // verification + admin notify
@@ -108,7 +112,10 @@ class AdminNotifyIntegrationTest {
         .perform(
             post("/api/v1/auth/register")
                 .contentType(jsonContentType())
-                .content(toJson(new RegisterRequest("u-mgr@example.com", "Secret123"))))
+                .content(
+                    toJson(
+                        new RegisterRequest(
+                            TestEnterprise.CODE, "u-mgr@example.com", "Secret123"))))
         .andExpect(status().isCreated());
 
     verify(javaMailSender, times(1)).send(anyMailMessage());
@@ -131,7 +138,10 @@ class AdminNotifyIntegrationTest {
         .perform(
             post("/api/v1/auth/register")
                 .contentType(jsonContentType())
-                .content(toJson(new RegisterRequest("u-msg@example.com", "Secret123"))))
+                .content(
+                    toJson(
+                        new RegisterRequest(
+                            TestEnterprise.CODE, "u-msg@example.com", "Secret123"))))
         .andExpect(status().isCreated());
 
     // лише verification новому USER (немає ACTIVE bot identity → SKIP messenger)
@@ -152,7 +162,10 @@ class AdminNotifyIntegrationTest {
         .perform(
             post("/api/v1/auth/register")
                 .contentType(jsonContentType())
-                .content(toJson(new RegisterRequest("u-smtp@example.com", "Secret123"))))
+                .content(
+                    toJson(
+                        new RegisterRequest(
+                            TestEnterprise.CODE, "u-smtp@example.com", "Secret123"))))
         .andExpect(status().isCreated());
   }
 
@@ -165,7 +178,10 @@ class AdminNotifyIntegrationTest {
         .perform(
             post("/api/v1/auth/register")
                 .contentType(jsonContentType())
-                .content(toJson(new RegisterRequest("u-off@example.com", "Secret123"))))
+                .content(
+                    toJson(
+                        new RegisterRequest(
+                            TestEnterprise.CODE, "u-off@example.com", "Secret123"))))
         .andExpect(status().isCreated());
 
     verify(javaMailSender, times(1)).send(anyMailMessage());
@@ -180,7 +196,10 @@ class AdminNotifyIntegrationTest {
         .perform(
             post("/api/v1/auth/register")
                 .contentType(jsonContentType())
-                .content(toJson(new RegisterRequest("u-two@example.com", "Secret123"))))
+                .content(
+                    toJson(
+                        new RegisterRequest(
+                            TestEnterprise.CODE, "u-two@example.com", "Secret123"))))
         .andExpect(status().isCreated());
 
     verify(javaMailSender, times(3)).send(anyMailMessage());
@@ -200,6 +219,7 @@ class AdminNotifyIntegrationTest {
 
   private User saveUser(String email, String password, Role role) {
     User user = new User();
+    user.setEnterpriseId(TestEnterprise.ID);
     user.setId(UUID.randomUUID().toString());
     user.setEmail(email);
     user.setPasswordHash(passwordEncoder.encode(password));

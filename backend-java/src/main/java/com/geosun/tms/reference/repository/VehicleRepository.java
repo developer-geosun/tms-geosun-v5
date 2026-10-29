@@ -7,26 +7,32 @@ import org.springframework.data.jpa.repository.JpaRepository;
 
 public interface VehicleRepository extends JpaRepository<Vehicle, String> {
 
-  List<Vehicle> findByDeletedFalseOrderByPlateNumberAsc();
+  List<Vehicle> findByEnterpriseIdAndDeletedFalseOrderByPlateNumberAsc(String enterpriseId);
 
-  List<Vehicle> findByDeletedTrueOrderByPlateNumberAsc();
+  List<Vehicle> findByEnterpriseIdAndDeletedTrueOrderByPlateNumberAsc(String enterpriseId);
 
-  List<Vehicle> findAllByOrderByPlateNumberAsc();
+  List<Vehicle> findByEnterpriseIdOrderByPlateNumberAsc(String enterpriseId);
 
-  boolean existsByPlateNumberIgnoreCaseAndDeletedFalseAndIdNot(String plateNumber, String id);
+  boolean existsByEnterpriseIdAndPlateNumberIgnoreCaseAndDeletedFalseAndIdNot(
+      String enterpriseId, String plateNumber, String id);
 
-  boolean existsByPlateNumberIgnoreCaseAndDeletedFalse(String plateNumber);
+  boolean existsByEnterpriseIdAndPlateNumberIgnoreCaseAndDeletedFalse(
+      String enterpriseId, String plateNumber);
 
-  boolean existsByVinIgnoreCaseAndDeletedFalseAndIdNot(String vin, String id);
+  boolean existsByEnterpriseIdAndVinIgnoreCaseAndDeletedFalseAndIdNot(
+      String enterpriseId, String vin, String id);
 
-  boolean existsByVinIgnoreCaseAndDeletedFalse(String vin);
+  boolean existsByEnterpriseIdAndVinIgnoreCaseAndDeletedFalse(String enterpriseId, String vin);
 
   boolean
-      existsByRegistrationSeriesIgnoreCaseAndRegistrationNumberIgnoreCaseAndDeletedFalseAndIdNot(
-          String series, String number, String id);
+      existsByEnterpriseIdAndRegistrationSeriesIgnoreCaseAndRegistrationNumberIgnoreCaseAndDeletedFalseAndIdNot(
+          String enterpriseId, String series, String number, String id);
 
-  boolean existsByRegistrationSeriesIgnoreCaseAndRegistrationNumberIgnoreCaseAndDeletedFalse(
-      String series, String number);
+  boolean
+      existsByEnterpriseIdAndRegistrationSeriesIgnoreCaseAndRegistrationNumberIgnoreCaseAndDeletedFalse(
+          String enterpriseId, String series, String number);
 
-  Optional<Vehicle> findByIdAndDeletedFalse(String id);
+  Optional<Vehicle> findByIdAndEnterpriseId(String id, String enterpriseId);
+
+  Optional<Vehicle> findByIdAndEnterpriseIdAndDeletedFalse(String id, String enterpriseId);
 }

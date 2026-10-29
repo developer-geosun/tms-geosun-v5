@@ -3,6 +3,7 @@ package com.geosun.tms.freight.cost.service;
 import com.geosun.tms.auth.domain.user.User;
 import com.geosun.tms.auth.exception.ApiException;
 import com.geosun.tms.auth.repository.UserRepository;
+import com.geosun.tms.enterprise.port.CurrentEnterprise;
 import com.geosun.tms.freight.cost.domain.FreightNumericScenario;
 import com.geosun.tms.freight.cost.domain.MarginType;
 import com.geosun.tms.freight.cost.domain.TollTariffSet;
@@ -24,24 +25,28 @@ public class FreightNumericScenarioService {
   private final FreightCostCalculationRepository calculationRepository;
   private final TollTariffSetService tollTariffSetService;
   private final UserRepository userRepository;
+  private final CurrentEnterprise currentEnterprise;
 
   public FreightNumericScenarioService(
       FreightNumericScenarioRepository scenarioRepository,
       FreightCostCalculationRepository calculationRepository,
       TollTariffSetService tollTariffSetService,
-      UserRepository userRepository) {
+      UserRepository userRepository,
+      CurrentEnterprise currentEnterprise) {
     this.scenarioRepository = scenarioRepository;
     this.calculationRepository = calculationRepository;
     this.tollTariffSetService = tollTariffSetService;
     this.userRepository = userRepository;
+    this.currentEnterprise = currentEnterprise;
   }
 
   @Transactional(readOnly = true)
   public List<FreightNumericScenarioDto> list(boolean activeOnly) {
+    String enterpriseId = currentEnterprise.requireId();
     List<FreightNumericScenario> scenarios =
         activeOnly
-            ? scenarioRepository.findByActiveTrueOrderByNameAsc()
-            : scenarioRepository.findAllByOrderByNameAsc();
+            ? scenarioRepository.findByEnterpriseIdAndActiveTrueOrderByNameAsc(enterpriseId)
+            : scenarioRepository.findByEnterpriseIdOrderByNameAsc(enterpriseId);
     return scenarios.stream().map(this::toDto).toList();
   }
 
@@ -58,6 +63,7 @@ public class FreightNumericScenarioService {
     validateMargin(request.marginType(), request.marginPercent(), request.marginFixedAmount());
     TollTariffSet tollSet = tollTariffSetService.loadSet(request.tollTariffSetId());
     FreightNumericScenario scenario = new FreightNumericScenario();
+    scenario.setEnterpriseId(currentEnterprise.requireId());
     applyCreateOrUpdate(scenario, request, tollSet);
     scenario.setName(request.name().trim());
     scenario.setDescription(request.description());
@@ -98,7 +104,8 @@ public class FreightNumericScenarioService {
   public FreightNumericScenario loadScenario(String id) {
     FreightNumericScenario scenario =
         scenarioRepository
-            .findById(Objects.requireNonNull(id, "scenarioId"))
+            .findByIdAndEnterpriseId(
+                Objects.requireNonNull(id, "scenarioId"), currentEnterprise.requireId())
             .orElseThrow(() -> ApiException.notFound("Numeric scenario not found"));
     return Objects.requireNonNull(scenario);
   }
@@ -113,11 +120,14 @@ public class FreightNumericScenarioService {
     if (!StringUtils.hasText(name)) {
       return;
     }
+    String enterpriseId = currentEnterprise.requireId();
     boolean exists =
         excludeId == null
-            ? scenarioRepository.findByNameIgnoreCaseAndActiveTrue(name.trim()).isPresent()
-            : scenarioRepository.existsByNameIgnoreCaseAndActiveTrueAndIdNot(
-                name.trim(), excludeId);
+            ? scenarioRepository
+                .findByEnterpriseIdAndNameIgnoreCaseAndActiveTrue(enterpriseId, name.trim())
+                .isPresent()
+            : scenarioRepository.existsByEnterpriseIdAndNameIgnoreCaseAndActiveTrueAndIdNot(
+                enterpriseId, name.trim(), excludeId);
     if (exists) {
       throw ApiException.conflict(
           "SCENARIO_NAME_CONFLICT", "Active numeric scenario name already exists");

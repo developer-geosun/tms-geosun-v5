@@ -23,6 +23,9 @@ public class FreightCostCalculation {
   @Column(name = "id", nullable = false, updatable = false, length = 36)
   private String id;
 
+  @Column(name = "enterprise_id", length = 36)
+  private String enterpriseId;
+
   @ManyToOne(fetch = FetchType.LAZY, optional = false)
   @JoinColumn(name = "route_request_id", nullable = false)
   private RouteRequest routeRequest;
@@ -263,5 +266,13 @@ public class FreightCostCalculation {
 
   public void setCreatedBy(User createdBy) {
     this.createdBy = createdBy;
+  }
+
+  public String getEnterpriseId() {
+    return enterpriseId;
+  }
+
+  public void setEnterpriseId(String enterpriseId) {
+    this.enterpriseId = enterpriseId;
   }
 }

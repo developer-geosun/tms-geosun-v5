@@ -1,0 +1,44 @@
+<div class="platform-cabinet">
+  <header class="platform-cabinet__topbar" role="banner">
+    <div class="platform-cabinet__brand">
+      <mat-icon fontIcon="domain" aria-hidden="true"></mat-icon>
+      <div class="platform-cabinet__brand-text">
+        <span class="platform-cabinet__brand-name">GeoSun</span>
+        <span class="platform-cabinet__brand-sub">{{ 'pages.platformEnterprises.cabinet' | translate }}</span>
+      </div>
+    </div>
+    <nav class="platform-cabinet__nav" [attr.aria-label]="'pages.platformEnterprises.cabinet' | translate">
+      <a
+        mat-button
+        routerLink="/platform/enterprises"
+        routerLinkActive="is-active"
+        [routerLinkActiveOptions]="{ exact: true }">
+        {{ 'pages.platformEnterprises.navEnterprises' | translate }}
+      </a>
+      <a mat-button routerLink="/platform/currencies" routerLinkActive="is-active">
+        {{ 'pages.platformEnterprises.navCurrencies' | translate }}
+      </a>
+      <a mat-button routerLink="/platform/country-reference" routerLinkActive="is-active">
+        {{ 'pages.platformEnterprises.navCountries' | translate }}
+      </a>
+    </nav>
+    <div class="platform-cabinet__operator">
+      <span class="platform-cabinet__operator-email">{{ operatorEmail() }}</span>
+      <button mat-stroked-button type="button" class="platform-cabinet__logout" (click)="logout()">
+        <mat-icon fontIcon="logout" aria-hidden="true"></mat-icon>
+        {{ 'auth.logout' | translate }}
+      </button>
+    </div>
+  </header>
+
+  <div class="platform-cabinet__progress-slot" aria-hidden="true">
+    <mat-progress-bar
+      class="platform-cabinet__progress"
+      [class.platform-cabinet__progress--active]="pageLoading.isActive()"
+      mode="indeterminate" />
+  </div>
+
+  <main class="platform-cabinet__content" role="main">
+    <router-outlet />
+  </main>
+</div>

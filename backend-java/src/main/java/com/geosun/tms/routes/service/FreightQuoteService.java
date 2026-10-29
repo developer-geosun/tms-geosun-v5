@@ -3,6 +3,7 @@ package com.geosun.tms.routes.service;
 import com.geosun.tms.auth.domain.user.User;
 import com.geosun.tms.auth.exception.ApiException;
 import com.geosun.tms.auth.repository.UserRepository;
+import com.geosun.tms.enterprise.port.CurrentEnterprise;
 import com.geosun.tms.freight.cost.domain.FreightCostCalculation;
 import com.geosun.tms.freight.cost.repository.FreightCostCalculationRepository;
 import com.geosun.tms.routes.domain.FreightQuote;
@@ -41,6 +42,7 @@ public class FreightQuoteService {
   private final UserRepository userRepository;
   private final FreightCostCalculationRepository freightCostCalculationRepository;
   private final QuoteProposalMailSender quoteProposalMailSender;
+  private final CurrentEnterprise currentEnterprise;
 
   public FreightQuoteService(
       RouteRequestRepository routeRequestRepository,
@@ -49,7 +51,8 @@ public class FreightQuoteService {
       RouteRequestStatusHistoryRepository routeRequestStatusHistoryRepository,
       UserRepository userRepository,
       FreightCostCalculationRepository freightCostCalculationRepository,
-      QuoteProposalMailSender quoteProposalMailSender) {
+      QuoteProposalMailSender quoteProposalMailSender,
+      CurrentEnterprise currentEnterprise) {
     this.routeRequestRepository = routeRequestRepository;
     this.freightQuoteRepository = freightQuoteRepository;
     this.quoteIdempotencyKeyRepository = quoteIdempotencyKeyRepository;
@@ -57,6 +60,7 @@ public class FreightQuoteService {
     this.userRepository = userRepository;
     this.freightCostCalculationRepository = freightCostCalculationRepository;
     this.quoteProposalMailSender = quoteProposalMailSender;
+    this.currentEnterprise = currentEnterprise;
   }
 
   @Transactional
@@ -71,18 +75,20 @@ public class FreightQuoteService {
       return toDto(existing.getQuote());
     }
 
+    String enterpriseId = currentEnterprise.requireId();
     User adminUser =
         userRepository
             .findById(adminUserId)
             .orElseThrow(() -> ApiException.notFound("User not found"));
     RouteRequest routeRequest =
         routeRequestRepository
-            .findById(requestId)
+            .findByIdAndEnterpriseId(requestId, enterpriseId)
             .orElseThrow(() -> ApiException.notFound("Route request not found"));
 
     ResolvedQuoteFields fields = resolveQuoteFields(requestId, request);
 
     FreightQuote quote = new FreightQuote();
+    quote.setEnterpriseId(enterpriseId);
     quote.setRequest(routeRequest);
     quote.setAdminUser(adminUser);
     quote.setCurrency(fields.currency());
@@ -140,7 +146,7 @@ public class FreightQuoteService {
     }
     FreightQuote quote =
         freightQuoteRepository
-            .findById(normalizedQuoteId)
+            .findByIdAndEnterpriseId(normalizedQuoteId, currentEnterprise.requireId())
             .orElseThrow(() -> ApiException.notFound("Quote not found"));
     if (quote.getStatus() == QuoteStatus.SENT) {
       persistIdempotency(OP_SEND, key, adminUser, quote.getRequest(), quote);
@@ -197,7 +203,7 @@ public class FreightQuoteService {
   @Transactional(readOnly = true)
   public List<QuoteDto> getQuotesForRequest(@NonNull Long requestId) {
     routeRequestRepository
-        .findById(requestId)
+        .findByIdAndEnterpriseId(requestId, currentEnterprise.requireId())
         .orElseThrow(() -> ApiException.notFound("Route request not found"));
     return freightQuoteRepository.findByRequest_IdOrderByCreatedAtDesc(requestId).stream()
         .map(this::toDto)
@@ -280,7 +286,8 @@ public class FreightQuoteService {
     if (StringUtils.hasText(request.fromCostCalculationId())) {
       calculation =
           freightCostCalculationRepository
-              .findByIdAndRouteRequest_Id(request.fromCostCalculationId().trim(), requestId)
+              .findByIdAndEnterpriseIdAndRouteRequest_Id(
+                  request.fromCostCalculationId().trim(), currentEnterprise.requireId(), requestId)
               .orElseThrow(
                   () -> ApiException.notFound("Cost calculation not found for this request"));
     }

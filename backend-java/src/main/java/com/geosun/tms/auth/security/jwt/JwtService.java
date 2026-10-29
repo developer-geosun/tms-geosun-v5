@@ -21,6 +21,10 @@ import org.springframework.stereotype.Component;
 @Component
 public class JwtService {
 
+  public static final String CLAIM_KIND = "kind";
+  public static final String KIND_EMPLOYEE = "employee";
+  public static final String KIND_OPERATOR = "operator";
+
   private final JwtProperties properties;
   private SecretKey signingKey;
 
@@ -37,13 +41,24 @@ public class JwtService {
     this.signingKey = Keys.hmacShaKeyFor(secretBytes);
   }
 
+  /** Access-токен співробітника підприємства. */
   public String createAccessToken(String userId, String refreshSessionId) {
+    return createToken(userId, refreshSessionId, KIND_EMPLOYEE);
+  }
+
+  /** Access-токен оператора платформи (окремий вид принципала). */
+  public String createOperatorAccessToken(String operatorId, String refreshSessionId) {
+    return createToken(operatorId, refreshSessionId, KIND_OPERATOR);
+  }
+
+  private String createToken(String subjectId, String refreshSessionId, String kind) {
     Instant now = Instant.now();
     Instant exp = now.plusSeconds(properties.getExpiresSeconds());
     var builder =
         Jwts.builder()
-            .subject(userId)
+            .subject(subjectId)
             .claim(UserPrincipal.CLAIM_SESSION_ID, refreshSessionId)
+            .claim(CLAIM_KIND, kind)
             .issuedAt(Date.from(now))
             .expiration(Date.from(exp));
 
@@ -84,9 +99,12 @@ public class JwtService {
       }
       Instant iat = claims.getIssuedAt() != null ? claims.getIssuedAt().toInstant() : null;
       Instant exp = claims.getExpiration() != null ? claims.getExpiration().toInstant() : null;
+      // Токени без claim kind (видані до multi-enterprise) вважаємо токенами співробітника
+      String rawKind = claims.get(CLAIM_KIND, String.class);
+      String kind = KIND_OPERATOR.equals(rawKind) ? KIND_OPERATOR : KIND_EMPLOYEE;
       return Optional.of(
           new JwtAccessClaims(
-              Objects.requireNonNull(sub), Objects.requireNonNull(sessionId), iat, exp));
+              Objects.requireNonNull(sub), Objects.requireNonNull(sessionId), iat, exp, kind));
     } catch (JwtException | IllegalArgumentException e) {
       return Optional.empty();
     }

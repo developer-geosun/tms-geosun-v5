@@ -7,16 +7,22 @@ import org.springframework.data.jpa.repository.JpaRepository;
 
 public interface VehicleCombinationRepository extends JpaRepository<VehicleCombination, String> {
 
-  List<VehicleCombination> findByDeletedFalseOrderByNameAscCreatedAtAsc();
+  List<VehicleCombination> findByEnterpriseIdAndDeletedFalseOrderByNameAscCreatedAtAsc(
+      String enterpriseId);
 
-  List<VehicleCombination> findByDeletedTrueOrderByNameAscCreatedAtAsc();
+  List<VehicleCombination> findByEnterpriseIdAndDeletedTrueOrderByNameAscCreatedAtAsc(
+      String enterpriseId);
 
-  List<VehicleCombination> findAllByOrderByNameAscCreatedAtAsc();
+  List<VehicleCombination> findByEnterpriseIdOrderByNameAscCreatedAtAsc(String enterpriseId);
 
-  boolean existsByTractor_IdAndTrailer_IdAndDeletedFalse(String tractorId, String trailerId);
+  boolean existsByEnterpriseIdAndTractor_IdAndTrailer_IdAndDeletedFalse(
+      String enterpriseId, String tractorId, String trailerId);
 
-  boolean existsByTractor_IdAndTrailer_IdAndDeletedFalseAndIdNot(
-      String tractorId, String trailerId, String id);
+  boolean existsByEnterpriseIdAndTractor_IdAndTrailer_IdAndDeletedFalseAndIdNot(
+      String enterpriseId, String tractorId, String trailerId, String id);
 
-  Optional<VehicleCombination> findByIdAndDeletedFalse(String id);
+  Optional<VehicleCombination> findByIdAndEnterpriseId(String id, String enterpriseId);
+
+  Optional<VehicleCombination> findByIdAndEnterpriseIdAndDeletedFalse(
+      String id, String enterpriseId);
 }

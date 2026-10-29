@@ -7,9 +7,11 @@ import org.springframework.data.jpa.repository.JpaRepository;
 
 public interface FreightCostCalculationRepository
     extends JpaRepository<FreightCostCalculation, String> {
-  List<FreightCostCalculation> findByRouteRequest_IdOrderByCreatedAtDesc(Long routeRequestId);
+  List<FreightCostCalculation> findByEnterpriseIdAndRouteRequest_IdOrderByCreatedAtDesc(
+      String enterpriseId, Long routeRequestId);
 
-  Optional<FreightCostCalculation> findByIdAndRouteRequest_Id(String id, Long routeRequestId);
+  Optional<FreightCostCalculation> findByIdAndEnterpriseIdAndRouteRequest_Id(
+      String id, String enterpriseId, Long routeRequestId);
 
   boolean existsByScenario_Id(String scenarioId);
 }

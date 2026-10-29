@@ -1,6 +1,7 @@
 package com.geosun.tms.reference.service;
 
 import com.geosun.tms.auth.exception.ApiException;
+import com.geosun.tms.enterprise.port.CurrentEnterprise;
 import com.geosun.tms.reference.domain.Vehicle;
 import com.geosun.tms.reference.domain.VehicleCombination;
 import com.geosun.tms.reference.domain.VehicleCombinationListView;
@@ -24,23 +25,32 @@ public class VehicleCombinationService {
   private final VehicleCombinationRepository combinationRepository;
   private final VehicleRepository vehicleRepository;
   private final ActiveTripGuard activeTripGuard;
+  private final CurrentEnterprise currentEnterprise;
 
   public VehicleCombinationService(
       VehicleCombinationRepository combinationRepository,
       VehicleRepository vehicleRepository,
-      ActiveTripGuard activeTripGuard) {
+      ActiveTripGuard activeTripGuard,
+      CurrentEnterprise currentEnterprise) {
     this.combinationRepository = combinationRepository;
     this.vehicleRepository = vehicleRepository;
     this.activeTripGuard = activeTripGuard;
+    this.currentEnterprise = currentEnterprise;
   }
 
   @Transactional(readOnly = true)
   public List<VehicleCombinationDto> list(VehicleCombinationListView view) {
+    String enterpriseId = currentEnterprise.requireId();
     List<VehicleCombination> items =
         switch (view == null ? VehicleCombinationListView.ACTIVE : view) {
-          case ACTIVE -> combinationRepository.findByDeletedFalseOrderByNameAscCreatedAtAsc();
-          case DELETED -> combinationRepository.findByDeletedTrueOrderByNameAscCreatedAtAsc();
-          case ALL -> combinationRepository.findAllByOrderByNameAscCreatedAtAsc();
+          case ACTIVE ->
+              combinationRepository.findByEnterpriseIdAndDeletedFalseOrderByNameAscCreatedAtAsc(
+                  enterpriseId);
+          case DELETED ->
+              combinationRepository.findByEnterpriseIdAndDeletedTrueOrderByNameAscCreatedAtAsc(
+                  enterpriseId);
+          case ALL ->
+              combinationRepository.findByEnterpriseIdOrderByNameAscCreatedAtAsc(enterpriseId);
         };
     return items.stream().map(c -> toDto(Objects.requireNonNull(c))).toList();
   }
@@ -62,6 +72,7 @@ public class VehicleCombinationService {
         Objects.requireNonNull(tractor.getId()), Objects.requireNonNull(trailer.getId()), null);
 
     VehicleCombination combination = new VehicleCombination();
+    combination.setEnterpriseId(currentEnterprise.requireId());
     combination.setName(normalizeName(request.name()));
     combination.setTractor(tractor);
     combination.setTrailer(trailer);
@@ -125,7 +136,7 @@ public class VehicleCombinationService {
   public VehicleCombination requireCombination(@NonNull String id) {
     return Objects.requireNonNull(
         combinationRepository
-            .findById(id)
+            .findByIdAndEnterpriseId(id, currentEnterprise.requireId())
             .orElseThrow(() -> ApiException.notFound("Vehicle combination not found")));
   }
 
@@ -144,7 +155,7 @@ public class VehicleCombinationService {
     Vehicle vehicle =
         Objects.requireNonNull(
             vehicleRepository
-                .findByIdAndDeletedFalse(vehicleId)
+                .findByIdAndEnterpriseIdAndDeletedFalse(vehicleId, currentEnterprise.requireId())
                 .orElseThrow(() -> ApiException.notFound("Vehicle not found")));
     if (vehicle.getVehicleType() != expectedType) {
       throw ApiException.conflict(
@@ -156,12 +167,14 @@ public class VehicleCombinationService {
 
   private void assertUniquePair(
       @NonNull String tractorId, @NonNull String trailerId, @Nullable String excludeId) {
+    String enterpriseId = currentEnterprise.requireId();
     boolean exists =
         excludeId == null
-            ? combinationRepository.existsByTractor_IdAndTrailer_IdAndDeletedFalse(
-                tractorId, trailerId)
-            : combinationRepository.existsByTractor_IdAndTrailer_IdAndDeletedFalseAndIdNot(
-                tractorId, trailerId, excludeId);
+            ? combinationRepository.existsByEnterpriseIdAndTractor_IdAndTrailer_IdAndDeletedFalse(
+                enterpriseId, tractorId, trailerId)
+            : combinationRepository
+                .existsByEnterpriseIdAndTractor_IdAndTrailer_IdAndDeletedFalseAndIdNot(
+                    enterpriseId, tractorId, trailerId, excludeId);
     if (exists) {
       throw ApiException.conflict(
           "COMBINATION_PAIR_EXISTS",

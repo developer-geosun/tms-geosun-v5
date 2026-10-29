@@ -37,8 +37,9 @@ public class UserController {
   @SecurityRequirement(name = OpenApiConfig.BEARER_SCHEME)
   @DeleteMapping("/{id}")
   public ResponseEntity<Void> softDelete(
-      @AuthenticationPrincipal UserPrincipal principal, @PathVariable("id") @NonNull String id) {
-    adminUserService.softDelete(principal.getUserId(), id);
+      @AuthenticationPrincipal @NonNull UserPrincipal principal,
+      @PathVariable("id") @NonNull String id) {
+    adminUserService.softDelete(principal.requireEnterpriseId(), principal.getUserId(), id);
     return ResponseEntity.noContent().build();
   }
 }

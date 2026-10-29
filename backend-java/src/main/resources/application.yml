@@ -82,6 +82,12 @@ app:
     admin:
       email: ${ADMIN_EMAIL:}
       password: ${ADMIN_PASSWORD:}
+    platform-operator:
+      email: ${PLATFORM_OPERATOR_EMAIL:}
+      password: ${PLATFORM_OPERATOR_PASSWORD:}
+  enterprise:
+    default-code: ${DEFAULT_ENTERPRISE_CODE:}
+    default-name: ${DEFAULT_ENTERPRISE_NAME:}
   email:
     from: ${MAIL_FROM:no-reply@example.com}
     verification-expires-seconds: ${EMAIL_VERIFICATION_EXPIRES_SECONDS:86400}

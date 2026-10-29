@@ -16,6 +16,7 @@ import com.geosun.tms.auth.domain.user.User;
 import com.geosun.tms.auth.dto.request.LoginRequest;
 import com.geosun.tms.auth.repository.UserRepository;
 import com.geosun.tms.storage.api.StorageApiPaths;
+import com.geosun.tms.support.TestEnterprise;
 import java.nio.charset.StandardCharsets;
 import java.util.Objects;
 import org.junit.jupiter.api.Test;
@@ -130,6 +131,7 @@ class AdminStoredFileIntegrationTest {
 
   private User saveUser(String email, String rawPassword, Role role) {
     User user = new User();
+    user.setEnterpriseId(TestEnterprise.ID);
     user.setEmail(email);
     user.setPasswordHash(passwordEncoder.encode(rawPassword));
     user.setRole(role);
@@ -139,7 +141,7 @@ class AdminStoredFileIntegrationTest {
   }
 
   private String login(@NonNull String email, @NonNull String password) throws Exception {
-    LoginRequest body = new LoginRequest(email, password);
+    LoginRequest body = new LoginRequest(TestEnterprise.CODE, email, password);
     MvcResult result =
         mockMvc
             .perform(

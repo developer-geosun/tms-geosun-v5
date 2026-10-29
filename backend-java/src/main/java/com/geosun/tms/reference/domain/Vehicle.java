@@ -20,6 +20,9 @@ public class Vehicle {
   @Column(name = "id", nullable = false, updatable = false, length = 36)
   private String id;
 
+  @Column(name = "enterprise_id", length = 36)
+  private String enterpriseId;
+
   @Column(name = "plate_number", nullable = false, length = 32)
   private String plateNumber;
 
@@ -191,5 +194,13 @@ public class Vehicle {
 
   public void setUpdatedAt(Instant updatedAt) {
     this.updatedAt = updatedAt;
+  }
+
+  public String getEnterpriseId() {
+    return enterpriseId;
+  }
+
+  public void setEnterpriseId(String enterpriseId) {
+    this.enterpriseId = enterpriseId;
   }
 }

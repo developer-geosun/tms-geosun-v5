@@ -71,8 +71,15 @@ public class AdminNewFreightRequestNotifier {
       return;
     }
 
+    // Отримувачі — лише ADMIN підприємства автора заявки
+    String enterpriseId =
+        userRepository.findById(authorId).map(user -> user.getEnterpriseId()).orElse(null);
+    if (enterpriseId == null) {
+      log.info("freight_request_notify_skipped_no_enterprise requestId={}", id);
+      return;
+    }
     List<User> admins =
-        userRepository.findActiveWithAvailableRole(Role.ADMIN).stream()
+        userRepository.findActiveWithAvailableRoleAndEnterpriseId(Role.ADMIN, enterpriseId).stream()
             .filter(admin -> admin.getId() != null && !authorId.equals(admin.getId()))
             .toList();
     if (admins.isEmpty()) {

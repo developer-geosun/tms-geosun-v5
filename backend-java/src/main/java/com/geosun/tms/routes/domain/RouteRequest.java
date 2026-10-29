@@ -27,6 +27,9 @@ public class RouteRequest {
   @Column(name = "id", nullable = false, updatable = false)
   private Long id;
 
+  @Column(name = "enterprise_id", length = 36)
+  private String enterpriseId;
+
   @ManyToOne(fetch = FetchType.LAZY, optional = false)
   @JoinColumn(name = "user_id", nullable = false)
   private User user;
@@ -162,5 +165,13 @@ public class RouteRequest {
 
   public Instant getUpdatedAt() {
     return updatedAt;
+  }
+
+  public String getEnterpriseId() {
+    return enterpriseId;
+  }
+
+  public void setEnterpriseId(String enterpriseId) {
+    this.enterpriseId = enterpriseId;
   }
 }

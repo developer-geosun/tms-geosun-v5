@@ -54,6 +54,7 @@ public class AdminUserController {
   @PreAuthorize("hasAnyRole('ADMIN','MANAGER')")
   @GetMapping
   public PageResponse<UserAdminDto> list(
+      @AuthenticationPrincipal @NonNull UserPrincipal principal,
       @RequestParam(required = false) String email,
       @RequestParam(required = false) String name,
       @RequestParam(required = false) Role role,
@@ -64,6 +65,7 @@ public class AdminUserController {
       @RequestParam(defaultValue = "0") int page,
       @RequestParam(defaultValue = "20") int size) {
     return adminUserService.list(
+        principal.requireEnterpriseId(),
         new AdminUserListQuery(email, name, role, active, deleted, sort, order, page, size));
   }
 
@@ -71,8 +73,10 @@ public class AdminUserController {
   @SecurityRequirement(name = OpenApiConfig.BEARER_SCHEME)
   @PreAuthorize("hasAnyRole('ADMIN','MANAGER')")
   @GetMapping("/{id}")
-  public UserAdminDto getById(@PathVariable("id") @NonNull String id) {
-    return adminUserService.getById(id);
+  public UserAdminDto getById(
+      @AuthenticationPrincipal @NonNull UserPrincipal principal,
+      @PathVariable("id") @NonNull String id) {
+    return adminUserService.getById(principal.requireEnterpriseId(), id);
   }
 
   @Operation(summary = "Replace user profile (ADMIN)")
@@ -80,9 +84,10 @@ public class AdminUserController {
   @PreAuthorize("hasRole('ADMIN')")
   @PutMapping("/{id}/profile")
   public UserProfileDto putProfile(
+      @AuthenticationPrincipal @NonNull UserPrincipal principal,
       @PathVariable("id") @NonNull String id,
       @Valid @RequestBody @NonNull UpdateUserProfileRequest body) {
-    return userProfileService.putAdmin(id, body);
+    return userProfileService.putAdmin(principal.requireEnterpriseId(), id, body);
   }
 
   @Operation(
@@ -98,7 +103,11 @@ public class AdminUserController {
       @PathVariable("id") @NonNull String id,
       @Valid @RequestBody @NonNull UpdateUserRoleRequest body) {
     return adminUserService.updateRole(
-        principal.getUserId(), id, body.role(), body.superAdminPassword());
+        principal.requireEnterpriseId(),
+        principal.getUserId(),
+        id,
+        body.role(),
+        body.superAdminPassword());
   }
 
   @Operation(
@@ -113,7 +122,11 @@ public class AdminUserController {
       @PathVariable("id") @NonNull String id,
       @Valid @RequestBody @NonNull UpdateUserRolesRequest body) {
     return adminUserService.updateRoles(
-        principal.getUserId(), id, body.roles(), body.superAdminPassword());
+        principal.requireEnterpriseId(),
+        principal.getUserId(),
+        id,
+        body.roles(),
+        body.superAdminPassword());
   }
 
   @Operation(summary = "Activate or deactivate user")
@@ -124,7 +137,8 @@ public class AdminUserController {
       @AuthenticationPrincipal @NonNull UserPrincipal principal,
       @PathVariable("id") @NonNull String id,
       @Valid @RequestBody @NonNull UpdateUserActiveRequest body) {
-    return adminUserService.setActive(principal.getUserId(), id, body.active());
+    return adminUserService.setActive(
+        principal.requireEnterpriseId(), principal.getUserId(), id, body.active());
   }
 
   @Operation(summary = "Soft-delete user", description = "ADMIN only; idempotent 204.")
@@ -134,7 +148,7 @@ public class AdminUserController {
   public ResponseEntity<Void> softDelete(
       @AuthenticationPrincipal @NonNull UserPrincipal principal,
       @PathVariable("id") @NonNull String id) {
-    adminUserService.softDelete(principal.getUserId(), id);
+    adminUserService.softDelete(principal.requireEnterpriseId(), principal.getUserId(), id);
     return ResponseEntity.noContent().build();
   }
 
@@ -147,6 +161,6 @@ public class AdminUserController {
   public UserAdminDto restore(
       @AuthenticationPrincipal @NonNull UserPrincipal principal,
       @PathVariable("id") @NonNull String id) {
-    return adminUserService.restore(principal.getUserId(), id);
+    return adminUserService.restore(principal.requireEnterpriseId(), principal.getUserId(), id);
   }
 }

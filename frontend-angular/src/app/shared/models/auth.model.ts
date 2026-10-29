@@ -27,6 +27,8 @@ export interface AuthUserProfile {
 export interface AuthUser {
   id: string;
   email: string;
+  /** Код підприємства співробітника (відображається в оболонці). */
+  enterpriseCode?: string;
   role: UserRole;
   /** Призначені ролі (якщо немає — лише active). */
   availableRoles?: UserRole[];
@@ -35,11 +37,13 @@ export interface AuthUser {
 }
 
 export interface LoginRequest {
+  enterpriseCode: string;
   email: string;
   password: string;
 }
 
 export interface RegisterRequest {
+  enterpriseCode: string;
   email: string;
   password: string;
 }
@@ -55,6 +59,12 @@ export interface VerifyEmailRequest {
 }
 
 export interface ForgotPasswordRequest {
+  enterpriseCode: string;
+  email: string;
+}
+
+export interface ResendVerificationRequest {
+  enterpriseCode: string;
   email: string;
 }
 

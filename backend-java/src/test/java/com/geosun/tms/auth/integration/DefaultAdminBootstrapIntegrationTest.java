@@ -7,6 +7,7 @@ import com.geosun.tms.auth.domain.user.Role;
 import com.geosun.tms.auth.domain.user.User;
 import com.geosun.tms.auth.repository.UserRepository;
 import com.geosun.tms.auth.service.DefaultAdminBootstrapService;
+import com.geosun.tms.support.TestEnterprise;
 import java.util.EnumSet;
 import java.util.Objects;
 import org.junit.jupiter.api.BeforeEach;
@@ -50,6 +51,7 @@ class DefaultAdminBootstrapIntegrationTest {
   @Test
   void skipsWhenAdminAlreadyPresent() {
     User existing = new User();
+    existing.setEnterpriseId(TestEnterprise.ID);
     existing.setEmail("existing-admin@example.com");
     existing.setPasswordHash(passwordEncoder.encode("Admin123!"));
     existing.setRole(Role.ADMIN);

@@ -4,6 +4,7 @@ import com.geosun.tms.auth.domain.user.Role;
 import com.geosun.tms.auth.domain.user.User;
 import com.geosun.tms.auth.exception.ApiException;
 import com.geosun.tms.auth.repository.UserRepository;
+import com.geosun.tms.enterprise.port.CurrentEnterprise;
 import com.geosun.tms.reference.domain.Driver;
 import com.geosun.tms.reference.domain.DriverDocument;
 import com.geosun.tms.reference.domain.DriverDocumentCompliance;
@@ -37,25 +38,34 @@ public class DriverService {
   private final DriverDocumentRepository documentRepository;
   private final UserRepository userRepository;
   private final ActiveTripGuard activeTripGuard;
+  private final CurrentEnterprise currentEnterprise;
 
   public DriverService(
       DriverRepository driverRepository,
       DriverDocumentRepository documentRepository,
       UserRepository userRepository,
-      ActiveTripGuard activeTripGuard) {
+      ActiveTripGuard activeTripGuard,
+      CurrentEnterprise currentEnterprise) {
     this.driverRepository = driverRepository;
     this.documentRepository = documentRepository;
     this.userRepository = userRepository;
     this.activeTripGuard = activeTripGuard;
+    this.currentEnterprise = currentEnterprise;
   }
 
   @Transactional(readOnly = true)
   public List<DriverDto> list(DriverListView view) {
+    String enterpriseId = currentEnterprise.requireId();
     List<Driver> drivers =
         switch (view == null ? DriverListView.ACTIVE : view) {
-          case ACTIVE -> driverRepository.findByDeletedFalseOrderByLastNameAscFirstNameAsc();
-          case DELETED -> driverRepository.findByDeletedTrueOrderByLastNameAscFirstNameAsc();
-          case ALL -> driverRepository.findAllByOrderByLastNameAscFirstNameAsc();
+          case ACTIVE ->
+              driverRepository.findByEnterpriseIdAndDeletedFalseOrderByLastNameAscFirstNameAsc(
+                  enterpriseId);
+          case DELETED ->
+              driverRepository.findByEnterpriseIdAndDeletedTrueOrderByLastNameAscFirstNameAsc(
+                  enterpriseId);
+          case ALL ->
+              driverRepository.findByEnterpriseIdOrderByLastNameAscFirstNameAsc(enterpriseId);
         };
     Map<String, DriverDocumentCompliance> complianceMap =
         computeComplianceMap(Objects.requireNonNull(drivers));
@@ -80,6 +90,7 @@ public class DriverService {
   @Transactional
   public DriverDto create(@NonNull CreateDriverRequest request) {
     Driver driver = new Driver();
+    driver.setEnterpriseId(currentEnterprise.requireId());
     applyFields(
         driver,
         request.lastName(),
@@ -158,7 +169,7 @@ public class DriverService {
     String normalized = email.trim().toLowerCase(Locale.ROOT);
     User user =
         userRepository
-            .findByEmailAndDeletedFalse(normalized)
+            .findByEnterpriseIdAndEmailAndDeletedFalse(currentEnterprise.requireId(), normalized)
             .orElseThrow(() -> ApiException.notFound("User not found"));
     if (!user.hasAvailableRole(Role.USER) && !user.hasAvailableRole(Role.DRIVER)) {
       throw ApiException.conflict(
@@ -176,10 +187,11 @@ public class DriverService {
   @Transactional
   public DriverDto linkUser(@NonNull String driverId, @NonNull String userId) {
     Driver driver = requireActiveDriver(driverId);
+    String enterpriseId = currentEnterprise.requireId();
     User user =
         userRepository
             .findById(userId)
-            .filter(u -> !u.isDeleted())
+            .filter(u -> !u.isDeleted() && enterpriseId.equals(u.getEnterpriseId()))
             .orElseThrow(() -> ApiException.notFound("User not found"));
     if (!user.hasAvailableRole(Role.USER) && !user.hasAvailableRole(Role.DRIVER)) {
       throw ApiException.conflict(
@@ -211,7 +223,9 @@ public class DriverService {
   @NonNull
   public Driver requireDriver(@NonNull String id) {
     return Objects.requireNonNull(
-        driverRepository.findById(id).orElseThrow(() -> ApiException.notFound("Driver not found")));
+        driverRepository
+            .findByIdAndEnterpriseId(id, currentEnterprise.requireId())
+            .orElseThrow(() -> ApiException.notFound("Driver not found")));
   }
 
   @NonNull
@@ -249,11 +263,14 @@ public class DriverService {
   }
 
   private void assertUniqueLicense(@NonNull String licenseNumber, @Nullable String excludeId) {
+    String enterpriseId = currentEnterprise.requireId();
     boolean exists =
         excludeId == null
-            ? driverRepository.existsByLicenseNumberIgnoreCaseAndDeletedFalse(licenseNumber)
-            : driverRepository.existsByLicenseNumberIgnoreCaseAndDeletedFalseAndIdNot(
-                licenseNumber, excludeId);
+            ? driverRepository.existsByEnterpriseIdAndLicenseNumberIgnoreCaseAndDeletedFalse(
+                enterpriseId, licenseNumber)
+            : driverRepository
+                .existsByEnterpriseIdAndLicenseNumberIgnoreCaseAndDeletedFalseAndIdNot(
+                    enterpriseId, licenseNumber, excludeId);
     if (exists) {
       throw ApiException.conflict("LICENSE_ALREADY_EXISTS", "License number already exists");
     }

@@ -5,10 +5,9 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 
-/**
- * Тіло {@code POST /api/v1/auth/register}.
- */
+/** Тіло {@code POST /api/v1/auth/register}. */
 public record RegisterRequest(
+    @NotBlank String enterpriseCode,
     @NotBlank @Email String email,
     @NotBlank
         @Size(min = 8, message = "Password must be at least 8 characters")

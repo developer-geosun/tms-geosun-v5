@@ -1,7 +1,7 @@
 # Technical Specification / Техническое задание: Admin notify on new freight request / Сообщение ADMIN о новом запросе на расчёт фрахта
 
 **Дата создания:** 27 октября 2026, 11:12 (UTC+3)  
-**Дата изменения:** 27 октября 2026, 11:25 (UTC+3)
+**Дата изменения:** 29 октября 2026, 13:30 (UTC+3)
 
 ## Статус
 - **Реализация:** реализовано
@@ -38,6 +38,7 @@
   - [`admin-notify-new-freight-request.ru.md`](../briefs/admin-notify-new-freight-request.ru.md) — brief (алгоритм A).
   - [`routes-server-workflow-and-freight-quoting.ru.en.md`](routes-server-workflow-and-freight-quoting.ru.en.md) — заявка (B07). Это ТЗ **не** меняет FSM, quote и lock.
   - [`admin-notify-new-user-registration.ru.en.md`](admin-notify-new-user-registration.ru.en.md) — образец получателя ADMIN и best-effort (B04). Событие другое; EMAIL/SMS оттуда **не** копировать.
+  - [`multi-enterprise.ru.en.md`](multi-enterprise.ru.en.md) (B21) — получатели только ADMIN предприятия автора заявки.
   - [`chatbots-telegram-whatsapp-viber.ru.en.md`](chatbots-telegram-whatsapp-viber.ru.en.md) — транспорт привязки, адаптер, `bot_message_log` (B16). Список quote/trip/expense в той спеке этим файлом не расширяется.
   - [`user-profile.ru.en.md`](user-profile.ru.en.md) — флаг канала `MESSENGERS`.
   - [`user-multi-role-switching.ru.en.md`](user-multi-role-switching.ru.en.md) — «есть роль ADMIN» = доступная роль, не только активная.

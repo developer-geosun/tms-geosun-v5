@@ -21,7 +21,7 @@
 ## 2) Context / Контекст
 - **Project/module / Проект/модуль:** `backend-java` auth + `frontend-angular` admin pages.
 - **Current behavior / Текущее поведение:** регистрация всегда ставит `USER`; есть только `DELETE /api/v1/users/{id}` (soft-delete, ADMIN).
-- **Related docs / Связанные документы:** `docs/system.ru.md`, `docs/archive/TECHNICAL_SPECIFICATION_API_SERVER_v1.0.ru.md` (исторический MVP), `docs/specs/auth-authentication-authorization.ru.en.md`, `docs/specs/user-profile.ru.en.md`, `docs/specs/admin-notify-new-user-registration.ru.en.md` (ссылка из алерта регистрации ведёт на карточку `/admin/users/{id}`), `docs/specs/BASELINE.ru.md`.
+- **Related docs / Связанные документы:** `docs/system.ru.md`, `docs/archive/TECHNICAL_SPECIFICATION_API_SERVER_v1.0.ru.md` (исторический MVP), `docs/specs/auth-authentication-authorization.ru.en.md`, `docs/specs/user-profile.ru.en.md`, `docs/specs/admin-notify-new-user-registration.ru.en.md` (ссылка из алерта регистрации ведёт на карточку `/admin/users/{id}`), [`multi-enterprise.ru.en.md`](multi-enterprise.ru.en.md) (B21: список и последний ADMIN считаются внутри предприятия), `docs/specs/BASELINE.ru.md`.
 - **Environment constraints / Ограничения окружения:** Java 21 / Spring Boot 3, Angular 21 + Angular Material, единые breakpoints (`LayoutService`, `bp.handset`).
 
 ## 3) Scope (In) / Scope (входит в задачу)

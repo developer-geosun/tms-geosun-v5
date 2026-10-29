@@ -29,6 +29,9 @@ import com.geosun.tms.chatbot.client.TelegramApiClient;
 import com.geosun.tms.chatbot.domain.BotIdentityStatus;
 import com.geosun.tms.chatbot.domain.ChatbotChannel;
 import com.geosun.tms.chatbot.repository.BotIdentityRepository;
+import com.geosun.tms.enterprise.domain.Enterprise;
+import com.geosun.tms.enterprise.repository.EnterpriseRepository;
+import com.geosun.tms.support.TestEnterprise;
 import java.util.Objects;
 import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
@@ -64,6 +67,7 @@ class ChatbotTelegramIntegrationTest {
   @Autowired private BotIdentityRepository botIdentityRepository;
   @Autowired private UserContactPhoneRepository userContactPhoneRepository;
   @Autowired private RateLimitService rateLimitService;
+  @Autowired private EnterpriseRepository enterpriseRepository;
 
   @MockBean private JavaMailSender javaMailSender;
   @MockBean private TelegramApiClient telegramApiClient;
@@ -266,6 +270,86 @@ class ChatbotTelegramIntegrationTest {
         .andExpect(status().isForbidden());
   }
 
+  @Test
+  void link_rejectedWhenChatIsBoundToUserOfAnotherEnterprise() throws Exception {
+    User first = saveUser("tg-ent-a@example.com", "Secret123", Role.USER);
+    String firstId = Objects.requireNonNull(first.getId());
+    String chatId = "778899";
+    String firstCode =
+        requestLinkCode(login(Objects.requireNonNull(first.getEmail()), "Secret123"));
+    sendStart(chatId, firstCode);
+    assertThat(
+            botIdentityRepository
+                .findByUserIdAndChannel(firstId, ChatbotChannel.TELEGRAM)
+                .orElseThrow()
+                .getStatus())
+        .isEqualTo(BotIdentityStatus.ACTIVE);
+
+    // Друге підприємство: користувач намагається прив'язати той самий чат
+    Enterprise other = new Enterprise();
+    other.setCode("tg-other-ent");
+    other.setName("Other");
+    other.setActive(true);
+    String otherEnterpriseId =
+        Objects.requireNonNull(enterpriseRepository.saveAndFlush(other).getId());
+    User second = saveUser("tg-ent-b@example.com", "Secret123", Role.USER);
+    second.setEnterpriseId(otherEnterpriseId);
+    userRepository.saveAndFlush(second);
+    String secondCode =
+        requestLinkCode(
+            loginIn("tg-other-ent", Objects.requireNonNull(second.getEmail()), "Secret123"));
+    sendStart(chatId, secondCode);
+
+    assertThat(
+            botIdentityRepository
+                .findByUserIdAndChannel(firstId, ChatbotChannel.TELEGRAM)
+                .orElseThrow()
+                .getStatus())
+        .isEqualTo(BotIdentityStatus.ACTIVE);
+    assertThat(
+            botIdentityRepository.findByUserIdAndChannel(
+                Objects.requireNonNull(second.getId()), ChatbotChannel.TELEGRAM))
+        .isEmpty();
+  }
+
+  private String requestLinkCode(Session session) throws Exception {
+    MvcResult result =
+        mockMvc
+            .perform(
+                post("/api/v1/users/me/bot-link-codes")
+                    .header("Authorization", "Bearer " + session.access())
+                    .contentType(jsonContentType())
+                    .content("{\"channel\":\"TELEGRAM\"}"))
+            .andExpect(status().isOk())
+            .andReturn();
+    return objectMapper.readTree(responseBody(result)).path("code").asText();
+  }
+
+  private void sendStart(String chatId, String code) throws Exception {
+    mockMvc
+        .perform(
+            post("/api/v1/webhooks/telegram")
+                .contentType(jsonContentType())
+                .header("X-Telegram-Bot-Api-Secret-Token", SECRET)
+                .content(Objects.requireNonNull(telegramTextUpdate(chatId, "/start " + code))))
+        .andExpect(status().isOk());
+  }
+
+  private Session loginIn(String enterpriseCode, String email, String password) throws Exception {
+    MvcResult result =
+        mockMvc
+            .perform(
+                post("/api/v1/auth/login")
+                    .contentType(jsonContentType())
+                    .content(
+                        Objects.requireNonNull(
+                            objectMapper.writeValueAsString(
+                                new LoginRequest(enterpriseCode, email, password)))))
+            .andExpect(status().isOk())
+            .andReturn();
+    return new Session(objectMapper.readTree(responseBody(result)).path("accessToken").asText());
+  }
+
   private void putProfileWithPhone(String accessToken, String phone) throws Exception {
     ObjectNode body = objectMapper.createObjectNode();
     body.put("lastName", "Тест");
@@ -311,6 +395,7 @@ class ChatbotTelegramIntegrationTest {
 
   private User saveUser(String email, String password, Role role) {
     User user = new User();
+    user.setEnterpriseId(TestEnterprise.ID);
     user.setId(UUID.randomUUID().toString());
     user.setEmail(email);
     user.setPasswordHash(passwordEncoder.encode(password));
@@ -329,7 +414,8 @@ class ChatbotTelegramIntegrationTest {
                     .contentType(jsonContentType())
                     .content(
                         Objects.requireNonNull(
-                            objectMapper.writeValueAsString(new LoginRequest(email, password)))))
+                            objectMapper.writeValueAsString(
+                                new LoginRequest(TestEnterprise.CODE, email, password)))))
             .andExpect(status().isOk())
             .andReturn();
     JsonNode root = objectMapper.readTree(responseBody(result));

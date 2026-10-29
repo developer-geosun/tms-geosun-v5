@@ -14,11 +14,13 @@ import org.springframework.data.repository.query.Param;
 
 public interface TripRepository extends JpaRepository<Trip, String> {
 
-  Page<Trip> findByDeletedFalse(Pageable pageable);
+  Page<Trip> findByEnterpriseIdAndDeletedFalse(String enterpriseId, Pageable pageable);
 
-  Page<Trip> findByDeletedTrue(Pageable pageable);
+  Page<Trip> findByEnterpriseIdAndDeletedTrue(String enterpriseId, Pageable pageable);
 
-  Optional<Trip> findByIdAndDeletedFalse(String id);
+  Page<Trip> findByEnterpriseId(String enterpriseId, Pageable pageable);
+
+  Optional<Trip> findByIdAndEnterpriseId(String id, String enterpriseId);
 
   boolean existsByRouteRequestIdAndDeletedFalse(Long routeRequestId);
 
@@ -59,6 +61,7 @@ public interface TripRepository extends JpaRepository<Trip, String> {
       """
       select t from Trip t
       where t.deleted = false
+        and t.enterpriseId = :enterpriseId
         and t.status in :statuses
         and t.id <> :excludeId
         and t.plannedStartAt is not null and t.plannedEndAt is not null
@@ -70,6 +73,7 @@ public interface TripRepository extends JpaRepository<Trip, String> {
         )
       """)
   List<Trip> findOverlapping(
+      @Param("enterpriseId") String enterpriseId,
       @Param("excludeId") String excludeId,
       @Param("statuses") Collection<TripStatus> statuses,
       @Param("startAt") Instant startAt,
@@ -78,18 +82,21 @@ public interface TripRepository extends JpaRepository<Trip, String> {
       @Param("tractorId") String tractorId,
       @Param("trailerId") String trailerId);
 
-  Page<Trip> findByDriverIdAndDeletedFalse(String driverId, Pageable pageable);
+  Page<Trip> findByEnterpriseIdAndDriverIdAndDeletedFalse(
+      String enterpriseId, String driverId, Pageable pageable);
 
   @Query(
       """
       select t from Trip t
       where t.deleted = false
+        and t.enterpriseId = :enterpriseId
         and (:status is null or t.status = :status)
         and (:driverId is null or t.driverId = :driverId)
         and (:from is null or t.plannedStartAt >= :from)
         and (:to is null or t.plannedStartAt <= :to)
       """)
   Page<Trip> findActiveFiltered(
+      @Param("enterpriseId") String enterpriseId,
       @Param("status") TripStatus status,
       @Param("driverId") String driverId,
       @Param("from") Instant from,

@@ -5,6 +5,22 @@
 
   <form [formGroup]="form" (ngSubmit)="submit()" class="auth-form register-form">
     <mat-form-field appearance="outline">
+      <mat-label>{{ 'pages.register.enterpriseCode' | translate }}</mat-label>
+      <input
+        matInput
+        formControlName="enterpriseCode"
+        name="enterpriseCode"
+        autocomplete="organization"
+        autocapitalize="none"
+        spellcheck="false"
+        [attr.maxlength]="enterpriseCodeMaxLength"
+      />
+      @if (form.controls.enterpriseCode.touched && form.controls.enterpriseCode.hasError('required')) {
+        <mat-error>{{ 'pages.register.enterpriseCodeRequired' | translate }}</mat-error>
+      }
+    </mat-form-field>
+
+    <mat-form-field appearance="outline">
       <mat-label>{{ 'pages.register.email' | translate }}</mat-label>
       <input matInput formControlName="email" name="email" autocomplete="email" appSyncBrowserAutofill />
     </mat-form-field>
@@ -59,6 +75,12 @@
       <p class="banner banner--error">
         <mat-icon fontIcon="error_outline" aria-hidden="true"></mat-icon>
         <span>{{ 'pages.register.error409' | translate }}</span>
+      </p>
+    }
+    @if (errorCode() === 'enterprise_unavailable') {
+      <p class="banner banner--error">
+        <mat-icon fontIcon="error_outline" aria-hidden="true"></mat-icon>
+        <span>{{ 'pages.register.errorEnterpriseUnavailable' | translate }}</span>
       </p>
     }
     @if (errorCode() === '429') {

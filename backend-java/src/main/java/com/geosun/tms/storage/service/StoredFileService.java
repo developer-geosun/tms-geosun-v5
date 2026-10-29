@@ -1,6 +1,7 @@
 package com.geosun.tms.storage.service;
 
 import com.geosun.tms.auth.exception.ApiException;
+import com.geosun.tms.enterprise.port.CurrentEnterprise;
 import com.geosun.tms.storage.domain.StoredFile;
 import com.geosun.tms.storage.dto.StoredFileDto;
 import com.geosun.tms.storage.repository.StoredFileRepository;
@@ -29,10 +30,15 @@ public class StoredFileService {
 
   private final StoredFileRepository repository;
   private final StorageService storageService;
+  private final CurrentEnterprise currentEnterprise;
 
-  public StoredFileService(StoredFileRepository repository, StorageService storageService) {
+  public StoredFileService(
+      StoredFileRepository repository,
+      StorageService storageService,
+      CurrentEnterprise currentEnterprise) {
     this.repository = repository;
     this.storageService = storageService;
+    this.currentEnterprise = currentEnterprise;
   }
 
   public String storageType() {
@@ -41,20 +47,27 @@ public class StoredFileService {
 
   @Transactional(readOnly = true)
   public List<StoredFileDto> listAll() {
-    return repository.findAllByOrderByCreatedAtDesc().stream().map(this::toDto).toList();
+    return repository.findByEnterpriseIdOrderByCreatedAtDesc(currentEnterprise.requireId()).stream()
+        .map(f -> toDto(Objects.requireNonNull(f)))
+        .toList();
   }
 
   @Transactional(readOnly = true)
   public List<StoredFileDto> listByKeyPrefix(@NonNull String prefix) {
-    return repository.findByStorageKeyStartingWithOrderByCreatedAtDesc(prefix).stream()
-        .map(this::toDto)
+    return repository
+        .findByEnterpriseIdAndStorageKeyStartingWithOrderByCreatedAtDesc(
+            currentEnterprise.requireId(), prefix)
+        .stream()
+        .map(f -> toDto(Objects.requireNonNull(f)))
         .toList();
   }
 
   @Transactional(readOnly = true)
   public StoredFile requireById(@NonNull String id) {
     return Objects.requireNonNull(
-        repository.findById(id).orElseThrow(() -> ApiException.notFound("Stored file not found")));
+        repository
+            .findByIdAndEnterpriseId(id, currentEnterprise.requireId())
+            .orElseThrow(() -> ApiException.notFound("Stored file not found")));
   }
 
   @Transactional(readOnly = true)
@@ -107,6 +120,7 @@ public class StoredFileService {
     }
 
     StoredFile entity = new StoredFile();
+    entity.setEnterpriseId(currentEnterprise.requireId());
     entity.setStorageKey(storageKey);
     entity.setOriginalFilename(originalFilename);
     entity.setContentType(contentType);
@@ -129,7 +143,7 @@ public class StoredFileService {
   @Transactional
   public void delete(@NonNull String id) {
     repository
-        .findById(id)
+        .findByIdAndEnterpriseId(id, currentEnterprise.requireId())
         .ifPresent(
             file -> {
               storageService.delete(file.getStorageKey());

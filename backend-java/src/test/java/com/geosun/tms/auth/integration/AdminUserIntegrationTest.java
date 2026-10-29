@@ -22,6 +22,7 @@ import com.geosun.tms.auth.dto.request.UpdateUserRolesRequest;
 import com.geosun.tms.auth.exception.ApiException;
 import com.geosun.tms.auth.repository.UserRepository;
 import com.geosun.tms.auth.service.AdminUserService;
+import com.geosun.tms.support.TestEnterprise;
 import java.util.EnumSet;
 import java.util.Objects;
 import java.util.UUID;
@@ -189,7 +190,8 @@ class AdminUserIntegrationTest {
         .perform(
             post("/api/v1/auth/login")
                 .contentType(jsonContentType())
-                .content(toJson(new LoginRequest(victim.getEmail(), "Secret123"))))
+                .content(
+                    toJson(new LoginRequest(TestEnterprise.CODE, victim.getEmail(), "Secret123"))))
         .andExpect(status().isForbidden())
         .andExpect(jsonPath("$.code").value("USER_DELETED"));
 
@@ -205,7 +207,8 @@ class AdminUserIntegrationTest {
         .perform(
             post("/api/v1/auth/login")
                 .contentType(jsonContentType())
-                .content(toJson(new LoginRequest(victim.getEmail(), "Secret123"))))
+                .content(
+                    toJson(new LoginRequest(TestEnterprise.CODE, victim.getEmail(), "Secret123"))))
         .andExpect(status().isOk());
   }
 
@@ -253,17 +256,21 @@ class AdminUserIntegrationTest {
     String soleAdminId = Objects.requireNonNull(soleAdmin.getId());
 
     assertThatThrownBy(
-            () -> adminUserService.updateRole(otherActorId, soleAdminId, Role.MANAGER, null))
+            () ->
+                adminUserService.updateRole(
+                    TestEnterprise.ID, otherActorId, soleAdminId, Role.MANAGER, null))
         .isInstanceOf(ApiException.class)
         .extracting(ex -> ((ApiException) ex).getCode())
         .isEqualTo("LAST_ADMIN_PROTECTED");
 
-    assertThatThrownBy(() -> adminUserService.setActive(otherActorId, soleAdminId, false))
+    assertThatThrownBy(
+            () -> adminUserService.setActive(TestEnterprise.ID, otherActorId, soleAdminId, false))
         .isInstanceOf(ApiException.class)
         .extracting(ex -> ((ApiException) ex).getCode())
         .isEqualTo("LAST_ADMIN_PROTECTED");
 
-    assertThatThrownBy(() -> adminUserService.softDelete(otherActorId, soleAdminId))
+    assertThatThrownBy(
+            () -> adminUserService.softDelete(TestEnterprise.ID, otherActorId, soleAdminId))
         .isInstanceOf(ApiException.class)
         .extracting(ex -> ((ApiException) ex).getCode())
         .isEqualTo("LAST_ADMIN_PROTECTED");
@@ -373,6 +380,7 @@ class AdminUserIntegrationTest {
 
   private User saveUser(String email, String password, Role role) {
     User u = new User();
+    u.setEnterpriseId(TestEnterprise.ID);
     u.setEmail(email);
     u.setPasswordHash(passwordEncoder.encode(password));
     u.setRole(role);
@@ -387,7 +395,7 @@ class AdminUserIntegrationTest {
             .perform(
                 post("/api/v1/auth/login")
                     .contentType(jsonContentType())
-                    .content(toJson(new LoginRequest(email, password))))
+                    .content(toJson(new LoginRequest(TestEnterprise.CODE, email, password))))
             .andExpect(status().isOk())
             .andReturn();
     JsonNode n = objectMapper.readTree(responseBody(r));

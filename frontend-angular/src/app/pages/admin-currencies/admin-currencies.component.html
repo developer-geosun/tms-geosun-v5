@@ -15,14 +15,16 @@
         [disabled]="isLoading() || isSyncing()">
         <mat-icon aria-hidden="true">refresh</mat-icon>
       </button>
-      <button
-        mat-flat-button
-        color="primary"
-        type="button"
-        (click)="syncNbuRates()"
-        [disabled]="isLoading() || isSyncing()">
-        {{ (isSyncing() ? 'pages.adminCurrencies.syncing' : 'pages.adminCurrencies.syncNbu') | translate }}
-      </button>
+      @if (canManage) {
+        <button
+          mat-flat-button
+          color="primary"
+          type="button"
+          (click)="syncNbuRates()"
+          [disabled]="isLoading() || isSyncing()">
+          {{ (isSyncing() ? 'pages.adminCurrencies.syncing' : 'pages.adminCurrencies.syncNbu') | translate }}
+        </button>
+      }
     </div>
   </header>
 
@@ -115,7 +117,7 @@
           <td mat-cell *matCellDef="let row">
             <mat-slide-toggle
               [checked]="row.isActive"
-              [disabled]="isUpdating(row.code)"
+              [disabled]="!canManage || isUpdating(row.code)"
               (change)="toggleActive(row, $event.checked)" />
           </td>
         </ng-container>
@@ -155,7 +157,7 @@
           <td mat-cell *matCellDef="let row">
             <mat-slide-toggle
               [checked]="row.isActive"
-              [disabled]="isUpdating(row.code)"
+              [disabled]="!canManage || isUpdating(row.code)"
               (change)="toggleActive(row, $event.checked)" />
           </td>
         </ng-container>

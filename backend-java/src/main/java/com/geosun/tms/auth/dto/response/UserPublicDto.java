@@ -11,5 +11,6 @@ public record UserPublicDto(
     String email,
     @JsonProperty("role") String roleName,
     List<String> availableRoles,
+    String enterpriseCode,
     String displayName,
     UserProfileDto profile) {}

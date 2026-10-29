@@ -1,0 +1,128 @@
+@use 'breakpoints' as bp;
+
+:host {
+  display: block;
+  min-height: 100vh;
+  background: var(--mat-sys-surface);
+  color: var(--mat-sys-on-surface);
+}
+
+.platform-cabinet {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+
+  &__topbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: 0.75rem 1.5rem;
+    border-bottom: 1px solid var(--mat-sys-outline-variant);
+    background: var(--mat-sys-surface-container-low);
+  }
+
+  &__brand {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    min-width: 0;
+    color: var(--mat-sys-primary);
+  }
+
+  &__brand-text {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+  }
+
+  &__brand-name {
+    font-size: 1.125rem;
+    font-weight: 650;
+    color: var(--mat-sys-on-surface);
+    line-height: 1.2;
+  }
+
+  &__brand-sub {
+    font-size: 0.6875rem;
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--mat-sys-on-surface-variant);
+  }
+
+  &__nav {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.25rem;
+    min-width: 0;
+
+    a.is-active {
+      background: var(--mat-sys-secondary-container);
+      color: var(--mat-sys-on-secondary-container);
+    }
+  }
+
+  &__operator {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    min-width: 0;
+  }
+
+  &__operator-email {
+    font-size: 0.875rem;
+    color: var(--mat-sys-on-surface-variant);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  &__progress-slot {
+    height: 3px;
+    flex-shrink: 0;
+    overflow: hidden;
+    background-color: var(--mat-sys-surface-container-low);
+  }
+
+  &__progress {
+    display: block;
+    height: 3px;
+    opacity: 0;
+    pointer-events: none;
+
+    &--active {
+      opacity: 1;
+    }
+  }
+
+  &__content {
+    flex: 1 1 auto;
+    box-sizing: border-box;
+    width: 100%;
+    margin: 0 auto;
+    padding: 1.5rem;
+  }
+}
+
+@include bp.handset {
+  .platform-cabinet {
+    &__topbar {
+      flex-wrap: wrap;
+      padding: 0.5rem 0.75rem;
+    }
+
+    &__operator-email {
+      display: none;
+    }
+
+    &__nav {
+      order: 3;
+      flex-basis: 100%;
+    }
+
+    &__content {
+      padding: 0.75rem;
+    }
+  }
+}

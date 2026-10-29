@@ -13,6 +13,7 @@ import com.geosun.tms.auth.domain.user.Role;
 import com.geosun.tms.auth.domain.user.User;
 import com.geosun.tms.auth.dto.request.LoginRequest;
 import com.geosun.tms.auth.repository.UserRepository;
+import com.geosun.tms.support.TestEnterprise;
 import java.util.Objects;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
@@ -339,6 +340,7 @@ class UserProfileIntegrationTest {
 
   private User saveUser(String email, String password, Role role) {
     User user = new User();
+    user.setEnterpriseId(TestEnterprise.ID);
     user.setId(UUID.randomUUID().toString());
     user.setEmail(email);
     user.setPasswordHash(passwordEncoder.encode(password));
@@ -356,7 +358,9 @@ class UserProfileIntegrationTest {
                 org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post(
                         "/api/v1/auth/login")
                     .contentType(jsonContentType())
-                    .content(Objects.requireNonNull(toJson(new LoginRequest(email, password)))))
+                    .content(
+                        Objects.requireNonNull(
+                            toJson(new LoginRequest(TestEnterprise.CODE, email, password)))))
             .andExpect(status().isOk())
             .andReturn();
     JsonNode json = objectMapper.readTree(result.getResponse().getContentAsString());

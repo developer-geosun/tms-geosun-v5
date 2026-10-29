@@ -29,6 +29,9 @@ public class FreightQuote {
   @Column(name = "id", nullable = false, updatable = false, length = 36)
   private String id;
 
+  @Column(name = "enterprise_id", length = 36)
+  private String enterpriseId;
+
   @ManyToOne(fetch = FetchType.LAZY, optional = false)
   @JoinColumn(name = "request_id", nullable = false)
   private RouteRequest request;
@@ -188,5 +191,13 @@ public class FreightQuote {
 
   public void setSentAt(Instant sentAt) {
     this.sentAt = sentAt;
+  }
+
+  public String getEnterpriseId() {
+    return enterpriseId;
+  }
+
+  public void setEnterpriseId(String enterpriseId) {
+    this.enterpriseId = enterpriseId;
   }
 }

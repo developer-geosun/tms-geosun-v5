@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
+﻿import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Router, RouterModule } from '@angular/router';
@@ -10,8 +10,11 @@ import { MatInputModule } from '@angular/material/input';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { TranslateModule } from '@ngx-translate/core';
 import { AuthService } from '../../core/services';
+import { ENTERPRISE_CODE_MAX_LENGTH } from '../../core/utils/enterprise-code';
 import { PASSWORD_PATTERN } from '../../shared/constants';
 import { SyncBrowserAutofillDirective } from '../../shared/directives/sync-browser-autofill.directive';
+
+type RegisterErrorCode = '409' | '429' | 'enterprise_unavailable' | 'generic';
 
 @Component({
   selector: 'app-register',
@@ -38,12 +41,15 @@ export class RegisterComponent {
   private readonly authService = inject(AuthService);
   private readonly router = inject(Router);
 
+  protected readonly enterpriseCodeMaxLength = ENTERPRISE_CODE_MAX_LENGTH;
+
   readonly isLoading = signal(false);
   readonly hasSuccess = signal(false);
-  readonly errorCode = signal<'409' | '429' | 'generic' | null>(null);
+  readonly errorCode = signal<RegisterErrorCode | null>(null);
   readonly isPasswordVisible = signal(false);
 
   readonly form = this.formBuilder.nonNullable.group({
+    enterpriseCode: ['', [Validators.required, Validators.maxLength(ENTERPRISE_CODE_MAX_LENGTH)]],
     email: ['', [Validators.required, Validators.email]],
     password: ['', [Validators.required, Validators.minLength(8), Validators.pattern(PASSWORD_PATTERN)]],
     confirmPassword: ['', [Validators.required, Validators.minLength(8)]]
@@ -66,24 +72,29 @@ export class RegisterComponent {
     this.hasSuccess.set(false);
     this.isLoading.set(true);
 
-    this.authService.register({ email: values.email, password: values.password }).subscribe({
-      next: () => {
-        this.isLoading.set(false);
-        this.hasSuccess.set(true);
-        this.router.navigate(['/login']);
-      },
-      error: (error: { status?: number }) => {
-        this.isLoading.set(false);
-        this.errorCode.set(this.mapErrorCode(error.status));
-      }
-    });
+    this.authService
+      .register({ enterpriseCode: values.enterpriseCode, email: values.email, password: values.password })
+      .subscribe({
+        next: () => {
+          this.isLoading.set(false);
+          this.hasSuccess.set(true);
+          this.router.navigate(['/login']);
+        },
+        error: (error: { status?: number; error?: { code?: string } }) => {
+          this.isLoading.set(false);
+          this.errorCode.set(this.mapErrorCode(error));
+        }
+      });
   }
 
-  private mapErrorCode(status?: number): '409' | '429' | 'generic' {
-    if (status === 409) {
+  private mapErrorCode(error: { status?: number; error?: { code?: string } }): RegisterErrorCode {
+    if (error.status === 400 && error.error?.code === 'ENTERPRISE_UNAVAILABLE') {
+      return 'enterprise_unavailable';
+    }
+    if (error.status === 409) {
       return '409';
     }
-    if (status === 429) {
+    if (error.status === 429) {
       return '429';
     }
     return 'generic';

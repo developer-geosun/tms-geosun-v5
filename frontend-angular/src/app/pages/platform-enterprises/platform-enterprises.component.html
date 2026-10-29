@@ -1,0 +1,148 @@
+    <section class="platform-enterprises">
+      <header class="platform-enterprises__header">
+        <div>
+          <p class="gs-eyebrow">{{ 'pages.platformEnterprises.eyebrow' | translate }}</p>
+          <h1>{{ 'pages.platformEnterprises.title' | translate }}</h1>
+        </div>
+        <div class="platform-enterprises__actions">
+          <button
+            mat-stroked-button
+            type="button"
+            class="admin-list-toolbar__icon-action"
+            [matTooltip]="'pages.platformEnterprises.refresh' | translate"
+            [attr.aria-label]="'pages.platformEnterprises.refresh' | translate"
+            [disabled]="isLoading()"
+            (click)="reload()">
+            <mat-icon fontIcon="refresh" aria-hidden="true"></mat-icon>
+          </button>
+          <button mat-flat-button color="primary" type="button" (click)="openCreateDialog()">
+            <mat-icon fontIcon="add" aria-hidden="true"></mat-icon>
+            {{ 'pages.platformEnterprises.create' | translate }}
+          </button>
+        </div>
+      </header>
+
+      @if (isLoading() && !hasLoaded()) {
+        <div class="platform-enterprises__state" role="status" aria-live="polite">
+          <mat-spinner diameter="36"></mat-spinner>
+          <p>{{ 'pages.platformEnterprises.loading' | translate }}</p>
+        </div>
+      }
+
+      @if (loadError()) {
+        <div class="platform-enterprises__state platform-enterprises__state--error" role="alert">
+          <mat-icon fontIcon="error_outline" aria-hidden="true"></mat-icon>
+          <p>{{ 'pages.platformEnterprises.loadFailed' | translate }}</p>
+          <button mat-stroked-button type="button" [disabled]="isLoading()" (click)="reload()">
+            {{ 'pages.platformEnterprises.retry' | translate }}
+          </button>
+        </div>
+      }
+
+      @if (isEmpty()) {
+        <div class="platform-enterprises__state" role="status">
+          <mat-icon fontIcon="domain_disabled" aria-hidden="true"></mat-icon>
+          <p>{{ 'pages.platformEnterprises.empty' | translate }}</p>
+          <button mat-flat-button color="primary" type="button" (click)="openCreateDialog()">
+            {{ 'pages.platformEnterprises.create' | translate }}
+          </button>
+        </div>
+      }
+
+      @if (showList()) {
+        @if (isHandset()) {
+          <div class="platform-enterprises__cards">
+            @for (enterprise of enterprises(); track enterprise.id) {
+              <mat-card appearance="outlined" class="platform-enterprises__card">
+                <mat-card-header>
+                  <mat-card-title>{{ enterprise.name }}</mat-card-title>
+                  <mat-card-subtitle class="platform-enterprises__code">{{ enterprise.code }}</mat-card-subtitle>
+                </mat-card-header>
+                <mat-card-content>
+                  <span
+                    class="platform-enterprises__status"
+                    [class.platform-enterprises__status--active]="enterprise.active"
+                    [class.platform-enterprises__status--suspended]="!enterprise.active">
+                    <mat-icon
+                      [fontIcon]="enterprise.active ? 'check_circle' : 'pause_circle'"
+                      aria-hidden="true"></mat-icon>
+                    {{
+                      (enterprise.active
+                        ? 'pages.platformEnterprises.statusActive'
+                        : 'pages.platformEnterprises.statusSuspended') | translate
+                    }}
+                  </span>
+                  <p class="platform-enterprises__date">{{ enterprise.createdAt | date: 'dd.MM.yyyy HH:mm' }}</p>
+                </mat-card-content>
+                <mat-card-actions>
+                  <button
+                    mat-button
+                    type="button"
+                    [color]="enterprise.active ? 'warn' : 'primary'"
+                    [disabled]="isBusy(enterprise.id)"
+                    (click)="toggleActive(enterprise)">
+                    {{
+                      (enterprise.active
+                        ? 'pages.platformEnterprises.suspend'
+                        : 'pages.platformEnterprises.activate') | translate
+                    }}
+                  </button>
+                </mat-card-actions>
+              </mat-card>
+            }
+          </div>
+        } @else {
+          <div class="platform-enterprises__table-shell table-shell">
+            <table mat-table [dataSource]="enterprises()" class="platform-enterprises__table">
+              <ng-container matColumnDef="code">
+                <th mat-header-cell *matHeaderCellDef>{{ 'pages.platformEnterprises.colCode' | translate }}</th>
+                <td mat-cell *matCellDef="let row" class="platform-enterprises__code">{{ row.code }}</td>
+              </ng-container>
+              <ng-container matColumnDef="name">
+                <th mat-header-cell *matHeaderCellDef>{{ 'pages.platformEnterprises.colName' | translate }}</th>
+                <td mat-cell *matCellDef="let row">{{ row.name }}</td>
+              </ng-container>
+              <ng-container matColumnDef="status">
+                <th mat-header-cell *matHeaderCellDef>{{ 'pages.platformEnterprises.colStatus' | translate }}</th>
+                <td mat-cell *matCellDef="let row">
+                  <span
+                    class="platform-enterprises__status"
+                    [class.platform-enterprises__status--active]="row.active"
+                    [class.platform-enterprises__status--suspended]="!row.active">
+                    <mat-icon [fontIcon]="row.active ? 'check_circle' : 'pause_circle'" aria-hidden="true"></mat-icon>
+                    {{
+                      (row.active
+                        ? 'pages.platformEnterprises.statusActive'
+                        : 'pages.platformEnterprises.statusSuspended') | translate
+                    }}
+                  </span>
+                </td>
+              </ng-container>
+              <ng-container matColumnDef="createdAt">
+                <th mat-header-cell *matHeaderCellDef>{{ 'pages.platformEnterprises.colCreated' | translate }}</th>
+                <td mat-cell *matCellDef="let row">{{ row.createdAt | date: 'dd.MM.yyyy HH:mm' }}</td>
+              </ng-container>
+              <ng-container matColumnDef="actions">
+                <th mat-header-cell *matHeaderCellDef class="platform-enterprises__actions-col"></th>
+                <td mat-cell *matCellDef="let row" class="platform-enterprises__actions-col">
+                  <button
+                    mat-button
+                    type="button"
+                    [color]="row.active ? 'warn' : 'primary'"
+                    [disabled]="isBusy(row.id)"
+                    (click)="toggleActive(row)">
+                    {{
+                      (row.active
+                        ? 'pages.platformEnterprises.suspend'
+                        : 'pages.platformEnterprises.activate') | translate
+                    }}
+                  </button>
+                </td>
+              </ng-container>
+              <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
+              <tr mat-row *matRowDef="let row; columns: displayedColumns"></tr>
+            </table>
+          </div>
+        }
+      }
+    </section>

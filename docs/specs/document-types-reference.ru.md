@@ -24,6 +24,7 @@
 - [`drivers-and-vehicle-combinations.ru.en.md`](drivers-and-vehicle-combinations.ru.en.md) — паспорт, права, сканы FRONT/BACK.
 - [`file-storage.ru.md`](file-storage.ru.md) — хранение бинарников.
 - [`document-ocr.ru.md`](document-ocr.ru.md) — распознавание сканов и предзаполнение `field_definitions` (спека).
+- [`multi-enterprise.ru.en.md`](multi-enterprise.ru.en.md) (B21) — свой каталог у предприятия; новое предприятие получает копию с новыми id.
 
 ## Вне области (текущий этап)
 - Замена enum-типов на ссылки из справочника в API ТС/водителей.

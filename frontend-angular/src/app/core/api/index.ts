@@ -32,4 +32,5 @@ export * from './vehicle-combinations-api.service';
 export * from './vehicle-combinations-contracts.model';
 export * from './trips-api.service';
 export * from './trips-contracts.model';
+export * from './platform-enterprises-api.service';
 

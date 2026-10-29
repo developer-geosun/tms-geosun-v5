@@ -39,7 +39,7 @@ describe('AuthService', () => {
 
   it('saves session after successful login', () => {
     let emittedEmail = '';
-    service.login({ email: 'user@example.com', password: 'password123' }).subscribe((user) => {
+    service.login({ enterpriseCode: 'acme', email: 'user@example.com', password: 'password123' }).subscribe((user) => {
       emittedEmail = user.email;
     });
 
@@ -62,8 +62,33 @@ describe('AuthService', () => {
     expect(service.accessToken()).toBe('access-token');
   });
 
+  it('sends normalized enterprise code and keeps it on the user', () => {
+    service.login({ enterpriseCode: '  ACME  ', email: 'user@example.com', password: 'password123' }).subscribe();
+
+    const request = httpMock.expectOne('http://localhost:8080/api/v1/auth/login');
+    expect(request.request.body.enterpriseCode).toBe('acme');
+    request.flush({
+      accessToken: 'access-token',
+      refreshToken: 'refresh-token',
+      tokenType: 'Bearer',
+      expiresIn: 900,
+      user: { id: 'u1', email: 'user@example.com', role: 'user', enterpriseCode: 'acme' }
+    });
+
+    expect(service.user()?.enterpriseCode).toBe('acme');
+    expect(service.enterpriseCode()).toBe('acme');
+  });
+
+  it('sends enterprise code with resend verification', () => {
+    service.resendVerification({ enterpriseCode: 'Acme', email: 'user@example.com' }).subscribe();
+
+    const request = httpMock.expectOne('http://localhost:8080/api/v1/auth/resend-verification');
+    expect(request.request.body).toEqual({ enterpriseCode: 'acme', email: 'user@example.com' });
+    request.flush({ success: true, message: 'ok' });
+  });
+
   it('clears session when refresh fails with 401', () => {
-    service.login({ email: 'user@example.com', password: 'password123' }).subscribe();
+    service.login({ enterpriseCode: 'acme', email: 'user@example.com', password: 'password123' }).subscribe();
     httpMock.expectOne('http://localhost:8080/api/v1/auth/login').flush({
       accessToken: 'access-token',
       refreshToken: 'refresh-token',
@@ -281,7 +306,7 @@ describe('AuthService', () => {
   it('treats API error envelope as failed login', () => {
     let status = 0;
 
-    service.login({ email: 'user@example.com', password: 'password123' }).subscribe({
+    service.login({ enterpriseCode: 'acme', email: 'user@example.com', password: 'password123' }).subscribe({
       error: (error: { status: number }) => {
         status = error.status;
       }
@@ -297,7 +322,7 @@ describe('AuthService', () => {
   });
 
   function seedSession_(): void {
-    service.login({ email: 'user@example.com', password: 'password123' }).subscribe();
+    service.login({ enterpriseCode: 'acme', email: 'user@example.com', password: 'password123' }).subscribe();
     httpMock.expectOne('http://localhost:8080/api/v1/auth/login').flush({
       accessToken: 'access-token',
       refreshToken: 'refresh-token',

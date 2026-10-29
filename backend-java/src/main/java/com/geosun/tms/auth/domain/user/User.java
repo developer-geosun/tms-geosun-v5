@@ -31,6 +31,10 @@ public class User {
   @Column(name = "id", nullable = false, updatable = false, length = 36)
   private String id;
 
+  /** Підприємство співробітника. Порожнє лише до переносу існуючих рядків. */
+  @Column(name = "enterprise_id", length = 36)
+  private String enterpriseId;
+
   @Column(name = "email", nullable = false, length = 320)
   private String email;
 
@@ -102,6 +106,14 @@ public class User {
 
   public void setId(String id) {
     this.id = id;
+  }
+
+  public String getEnterpriseId() {
+    return enterpriseId;
+  }
+
+  public void setEnterpriseId(String enterpriseId) {
+    this.enterpriseId = enterpriseId;
   }
 
   public String getEmail() {

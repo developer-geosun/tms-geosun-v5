@@ -11,6 +11,7 @@ import com.geosun.tms.chatbot.dto.response.AdminBotIdentityDto;
 import com.geosun.tms.chatbot.dto.response.AdminChatbotStatusDto;
 import com.geosun.tms.chatbot.dto.response.ChannelStatusDto;
 import com.geosun.tms.chatbot.repository.BotIdentityRepository;
+import com.geosun.tms.enterprise.port.CurrentEnterprise;
 import java.util.List;
 import java.util.Locale;
 import java.util.Objects;
@@ -29,14 +30,17 @@ public class ChatbotAdminService {
   private final ChatbotProperties chatbotProperties;
   private final TelegramChannelAdapter telegramChannelAdapter;
   private final BotIdentityRepository botIdentityRepository;
+  private final CurrentEnterprise currentEnterprise;
 
   public ChatbotAdminService(
       ChatbotProperties chatbotProperties,
       TelegramChannelAdapter telegramChannelAdapter,
-      BotIdentityRepository botIdentityRepository) {
+      BotIdentityRepository botIdentityRepository,
+      CurrentEnterprise currentEnterprise) {
     this.chatbotProperties = chatbotProperties;
     this.telegramChannelAdapter = telegramChannelAdapter;
     this.botIdentityRepository = botIdentityRepository;
+    this.currentEnterprise = currentEnterprise;
   }
 
   @Transactional(readOnly = true)
@@ -46,8 +50,8 @@ public class ChatbotAdminService {
     boolean configured =
         StringUtils.hasText(tg.getBotToken()) && StringUtils.hasText(tg.getSecretToken());
     long active =
-        botIdentityRepository.countByChannelAndStatus(
-            ChatbotChannel.TELEGRAM, BotIdentityStatus.ACTIVE);
+        botIdentityRepository.countByEnterpriseIdAndChannelAndStatus(
+            currentEnterprise.requireId(), ChatbotChannel.TELEGRAM, BotIdentityStatus.ACTIVE);
     ChannelStatusDto telegram =
         new ChannelStatusDto(
             ChatbotChannel.TELEGRAM.name(), telegramChannelAdapter.enabled(), configured, active);
@@ -61,6 +65,7 @@ public class ChatbotAdminService {
     int safePage = Math.max(0, page);
     int safeSize = Math.min(100, Math.max(1, size));
     PageRequest pageable = PageRequest.of(safePage, safeSize);
+    String enterpriseId = Objects.requireNonNull(currentEnterprise.requireId());
     Page<BotIdentity> result;
     if (StringUtils.hasText(channelRaw)) {
       ChatbotChannel channel;
@@ -72,10 +77,11 @@ public class ChatbotAdminService {
         return new PageResponse<>(List.of(), 0, 0, safePage, safeSize);
       }
       result =
-          botIdentityRepository.findByChannel(
-              Objects.requireNonNull(channel), Objects.requireNonNull(pageable));
+          botIdentityRepository.findByEnterpriseIdAndChannel(
+              enterpriseId, Objects.requireNonNull(channel), Objects.requireNonNull(pageable));
     } else {
-      result = botIdentityRepository.findAll(Objects.requireNonNull(pageable));
+      result =
+          botIdentityRepository.findByEnterpriseId(enterpriseId, Objects.requireNonNull(pageable));
     }
     boolean mask = viewerRole != Role.ADMIN;
     List<AdminBotIdentityDto> content =

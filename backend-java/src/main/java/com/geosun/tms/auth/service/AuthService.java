@@ -37,6 +37,10 @@ import com.geosun.tms.auth.security.config.JwtProperties;
 import com.geosun.tms.auth.security.crypto.OpaqueTokenGenerator;
 import com.geosun.tms.auth.security.crypto.TokenHasher;
 import com.geosun.tms.auth.security.jwt.JwtService;
+import com.geosun.tms.enterprise.domain.Enterprise;
+import com.geosun.tms.enterprise.domain.EnterpriseCodeRules;
+import com.geosun.tms.enterprise.repository.EnterpriseRepository;
+import com.geosun.tms.enterprise.repository.PlatformOperatorRepository;
 import java.time.Instant;
 import java.util.EnumSet;
 import java.util.Objects;
@@ -71,6 +75,8 @@ public class AuthService {
   private final RateLimitService rateLimitService;
   private final UserProfileService userProfileService;
   private final AdminNewUserNotifier adminNewUserNotifier;
+  private final EnterpriseRepository enterpriseRepository;
+  private final PlatformOperatorRepository platformOperatorRepository;
 
   public AuthService(
       UserRepository userRepository,
@@ -85,7 +91,9 @@ public class AuthService {
       PasswordResetMailSender passwordResetMailSender,
       RateLimitService rateLimitService,
       UserProfileService userProfileService,
-      AdminNewUserNotifier adminNewUserNotifier) {
+      AdminNewUserNotifier adminNewUserNotifier,
+      EnterpriseRepository enterpriseRepository,
+      PlatformOperatorRepository platformOperatorRepository) {
     this.userRepository = userRepository;
     this.emailVerificationTokenRepository = emailVerificationTokenRepository;
     this.passwordResetTokenRepository = passwordResetTokenRepository;
@@ -99,6 +107,23 @@ public class AuthService {
     this.rateLimitService = rateLimitService;
     this.userProfileService = userProfileService;
     this.adminNewUserNotifier = adminNewUserNotifier;
+    this.enterpriseRepository = enterpriseRepository;
+    this.platformOperatorRepository = platformOperatorRepository;
+  }
+
+  /** Підприємство за кодом із запиту (нормалізація за {@link EnterpriseCodeRules}) або null. */
+  private Enterprise findEnterprise(String rawCode) {
+    String code = EnterpriseCodeRules.normalize(rawCode);
+    if (code == null) {
+      return null;
+    }
+    return enterpriseRepository.findByCode(code).orElse(null);
+  }
+
+  /** Ключ rate limit: код підприємства + email, щоб підприємства не блокували одне одного. */
+  private static String loginRateKey(String rawCode, String email) {
+    String code = rawCode == null ? "" : rawCode.trim().toLowerCase(java.util.Locale.ROOT);
+    return code + "|" + email;
   }
 
   @Transactional
@@ -106,11 +131,18 @@ public class AuthService {
       RegisterRequest request, String clientIp, @NonNull AppClient appClient) {
     rateLimitService.checkRegister(clientIp);
     String email = EmailNormalizer.normalize(request.email());
-    if (userRepository.existsByEmailAndDeletedFalse(email)) {
+    Enterprise enterprise = findEnterprise(request.enterpriseCode());
+    if (enterprise == null || !enterprise.isActive()) {
+      throw ApiException.badRequest("ENTERPRISE_UNAVAILABLE", "Enterprise is unavailable");
+    }
+    String enterpriseId = Objects.requireNonNull(enterprise.getId());
+    if (platformOperatorRepository.existsByEmail(email)
+        || userRepository.existsByEnterpriseIdAndEmailAndDeletedFalse(enterpriseId, email)) {
       throw ApiException.conflict("Email is already registered");
     }
 
     User user = new User();
+    user.setEnterpriseId(enterpriseId);
     user.setEmail(email);
     user.setPasswordHash(passwordEncoder.encode(request.password()));
     user.setRole(Role.USER);
@@ -160,19 +192,29 @@ public class AuthService {
   @Transactional
   public AuthTokensResponse login(LoginRequest request, String clientIp) {
     String email = EmailNormalizer.normalize(request.email());
-    rateLimitService.checkLoginNotBlocked(clientIp, email);
+    String rateKey = loginRateKey(request.enterpriseCode(), email);
+    rateLimitService.checkLoginNotBlocked(clientIp, rateKey);
 
-    User user = userRepository.findTopByEmailOrderByDeletedAsc(email).orElse(null);
-    if (user == null) {
-      rateLimitService.recordLoginFailure(clientIp, email);
+    // Невідоме підприємство і невірна пара не розрізняються (anti-enumeration)
+    Enterprise enterprise = findEnterprise(request.enterpriseCode());
+    User user =
+        enterprise == null
+            ? null
+            : userRepository
+                .findTopByEnterpriseIdAndEmailOrderByDeletedAsc(
+                    Objects.requireNonNull(enterprise.getId()), email)
+                .orElse(null);
+    if (user == null || !passwordEncoder.matches(request.password(), user.getPasswordHash())) {
+      rateLimitService.recordLoginFailure(clientIp, rateKey);
       throw ApiException.unauthorized("INVALID_CREDENTIALS", "Invalid credentials");
     }
-    if (!passwordEncoder.matches(request.password(), user.getPasswordHash())) {
-      rateLimitService.recordLoginFailure(clientIp, email);
-      throw ApiException.unauthorized("INVALID_CREDENTIALS", "Invalid credentials");
-    }
 
-    rateLimitService.clearLoginFailures(clientIp, email);
+    rateLimitService.clearLoginFailures(clientIp, rateKey);
+
+    // Пароль вірний, тож статус підприємства можна повідомити
+    if (!Objects.requireNonNull(enterprise).isActive()) {
+      throw ApiException.forbidden("ENTERPRISE_SUSPENDED", "Enterprise is suspended");
+    }
 
     if (user.isDeleted()) {
       throw ApiException.forbidden("USER_DELETED", "User account has been deleted");
@@ -222,7 +264,14 @@ public class AuthService {
     String email = EmailNormalizer.normalize(request.email());
     rateLimitService.checkResend(email);
 
-    User user = userRepository.findByEmailAndDeletedFalse(email).orElse(null);
+    Enterprise enterprise = findEnterprise(request.enterpriseCode());
+    User user =
+        enterprise == null || !enterprise.isActive()
+            ? null
+            : userRepository
+                .findByEnterpriseIdAndEmailAndDeletedFalse(
+                    Objects.requireNonNull(enterprise.getId()), email)
+                .orElse(null);
     if (user == null || user.isEmailVerified()) {
       return new OperationSuccessResponse(true, "Verification email sent");
     }
@@ -255,9 +304,16 @@ public class AuthService {
     rateLimitService.checkForgotPassword(email);
 
     // Знаходимо і невидалені, і soft-deleted — щоб відрізнити USER_DELETED від «немає акаунта».
-    User user = userRepository.findTopByEmailOrderByDeletedAsc(email).orElse(null);
+    Enterprise enterprise = findEnterprise(request.enterpriseCode());
+    User user =
+        enterprise == null || !enterprise.isActive()
+            ? null
+            : userRepository
+                .findTopByEnterpriseIdAndEmailOrderByDeletedAsc(
+                    Objects.requireNonNull(enterprise.getId()), email)
+                .orElse(null);
     if (user == null) {
-      // Anti-enumeration: невідомий email — той самий успішний ответ.
+      // Anti-enumeration: невідомий email або підприємство — той самий успішний ответ.
       return new OperationSuccessResponse(true, "Password reset email sent");
     }
     if (user.isDeleted()) {
@@ -373,8 +429,21 @@ public class AuthService {
     if (!user.isActive()) {
       throw ApiException.forbidden("ACCOUNT_DISABLED", "Account is disabled");
     }
+    assertEnterpriseActive(user);
 
     return rotate(current, user);
+  }
+
+  private void assertEnterpriseActive(User user) {
+    String enterpriseId = user.getEnterpriseId();
+    if (enterpriseId == null) {
+      return;
+    }
+    Enterprise enterprise =
+        enterpriseRepository.findById(Objects.requireNonNull(enterpriseId)).orElse(null);
+    if (enterprise != null && !enterprise.isActive()) {
+      throw ApiException.forbidden("ENTERPRISE_SUSPENDED", "Enterprise is suspended");
+    }
   }
 
   private AuthTokensResponse rotate(RefreshToken current, User user) {
@@ -483,7 +552,15 @@ public class AuthService {
   }
 
   private UserPublicDto toPublicUser(User user) {
+    String enterpriseId = user.getEnterpriseId();
+    String enterpriseCode =
+        enterpriseId == null
+            ? null
+            : enterpriseRepository
+                .findById(Objects.requireNonNull(enterpriseId))
+                .map(e -> e.getCode())
+                .orElse(null);
     return UserDtoMapper.toPublicDto(
-        user, userProfileService.getByUserId(Objects.requireNonNull(user.getId())));
+        user, userProfileService.getByUserId(Objects.requireNonNull(user.getId())), enterpriseCode);
   }
 }

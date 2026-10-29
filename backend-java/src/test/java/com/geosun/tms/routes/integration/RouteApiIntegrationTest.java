@@ -15,6 +15,7 @@ import com.geosun.tms.auth.domain.user.Role;
 import com.geosun.tms.auth.domain.user.User;
 import com.geosun.tms.auth.dto.request.LoginRequest;
 import com.geosun.tms.auth.repository.UserRepository;
+import com.geosun.tms.support.TestEnterprise;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -486,6 +487,7 @@ class RouteApiIntegrationTest {
 
   private User createUser(String email, String password) {
     User user = new User();
+    user.setEnterpriseId(TestEnterprise.ID);
     user.setEmail(email);
     user.setPasswordHash(passwordEncoder.encode(password));
     user.setRole(Role.USER);
@@ -500,7 +502,7 @@ class RouteApiIntegrationTest {
             .perform(
                 post("/api/v1/auth/login")
                     .contentType(jsonMediaType())
-                    .content(toJson(new LoginRequest(email, password))))
+                    .content(toJson(new LoginRequest(TestEnterprise.CODE, email, password))))
             .andExpect(status().isOk())
             .andReturn();
     JsonNode json = objectMapper.readTree(loginResult.getResponse().getContentAsString());

@@ -21,7 +21,8 @@ import { MatPaginator, MatPaginatorModule } from '@angular/material/paginator';
 import { MatIconModule } from '@angular/material/icon';
 import { MatSort, MatSortModule, Sort } from '@angular/material/sort';
 import { MatTooltipModule } from '@angular/material/tooltip';
-import { CountryReferenceApiService, CountryReferenceContractDto } from '../../core/api';
+import { ActivatedRoute } from '@angular/router';
+import { CountryReferenceApiService, CountryReferenceContractDto, ReferenceApiScope } from '../../core/api';
 import { LayoutService } from '../../core/layout';
 import { syncPageLoadingToToolbar } from '../../shared/utils/sync-page-loading-to-toolbar';
 
@@ -50,7 +51,11 @@ export class AdminCountryReferenceComponent implements AfterViewInit {
   private static readonly HANDSET_DEFAULT_PAGE_SIZE = 5;
 
   private readonly countryReferenceApi = inject(CountryReferenceApiService);
+  private readonly route = inject(ActivatedRoute);
   private readonly formBuilder = inject(FormBuilder);
+  /** Оператор платформи читає той самий довідник зі свого API. */
+  private readonly scope: ReferenceApiScope =
+    this.route.snapshot.data['referenceScope'] === 'platform' ? 'platform' : 'admin';
   private readonly layout = inject(LayoutService);
 
   readonly displayedColumns = ['codeAlpha2', 'codeAlpha3', 'nameUk', 'nameEn', 'nameRu'];
@@ -105,7 +110,7 @@ export class AdminCountryReferenceComponent implements AfterViewInit {
     this.loadError.set('');
     try {
       const search = this.searchForm.controls.search.value.trim();
-      const countries = await this.countryReferenceApi.list(search || undefined);
+      const countries = await this.countryReferenceApi.list(search || undefined, this.scope);
       this.countries.set(countries);
       this.refreshTableData();
     } catch {

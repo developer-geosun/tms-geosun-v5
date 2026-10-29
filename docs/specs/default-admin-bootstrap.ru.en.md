@@ -1,7 +1,7 @@
 # Technical Specification / Техническое задание: Default ADMIN bootstrap
 
 **Дата создания:** 1 октября 2026, 21:25 (UTC+3)  
-**Дата изменения:** 1 октября 2026, 21:30 (UTC+3)
+**Дата изменения:** 29 октября 2026, 13:30 (UTC+3)
 
 ## Статус
 - **Реализация:** реализовано
@@ -24,7 +24,7 @@
 
 ## 2) Context
 - **Module:** `backend-java` auth (Identity, supporting).
-- **Related:** B01 auth, B02 admin users, B18 multi-role; `SUPER_ADMIN_PASSWORD` — step-up, не логин.
+- **Related:** B01 auth, B02 admin users, B18 multi-role, [B21](multi-enterprise.ru.en.md) (ADMIN создаётся у первого предприятия, если у него ещё нет ADMIN); `SUPER_ADMIN_PASSWORD` — step-up, не логин.
 - **Not:** Flutter, UI «create first admin», sync пароля при каждом рестарте.
 
 ## 3) Scope (In)
